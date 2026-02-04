@@ -1,0 +1,121 @@
+================================================================================
+SOURCE FILE DEEP SCAN
+Verifying pipeline compatibility with all language service files
+================================================================================
+
+Found 5 Excel files to scan.
+
+Scanning: Healthpoint - Propio Transaction Download.xlsx...
+Scanning: Nuvance - Cyracom Utilization.xlsx...
+Scanning: Peak Vista - AMN Download.xls...
+Scanning: VFC - Pacific Interpreters Invoice.xls...
+WARNING *** file size (171968) not 512 + multiple of sector size (512)
+WARNING *** file size (171968) not 512 + multiple of sector size (512)
+WARNING *** file size (171968) not 512 + multiple of sector size (512)
+WARNING *** file size (171968) not 512 + multiple of sector size (512)
+WARNING *** file size (171968) not 512 + multiple of sector size (512)
+WARNING *** file size (171968) not 512 + multiple of sector size (512)
+WARNING *** file size (171968) not 512 + multiple of sector size (512)
+Scanning: Wellspace - LanguageLine Invoice.XLS...
+WARNING *** file size (2416576) not 512 + multiple of sector size (512)
+WARNING *** file size (2416576) not 512 + multiple of sector size (512)
+WARNING *** file size (2416576) not 512 + multiple of sector size (512)
+WARNING *** file size (2416576) not 512 + multiple of sector size (512)
+WARNING *** file size (2416576) not 512 + multiple of sector size (512)
+WARNING *** file size (2416576) not 512 + multiple of sector size (512)
+WARNING *** file size (2416576) not 512 + multiple of sector size (512)
+
+================================================================================
+SCAN RESULTS
+================================================================================
+
+[FILE] Healthpoint - Propio Transaction Download.xlsx
+   Size: 39.5 MB | Rows: Large file - estimated 100k+ | Sheets: 3
+   Columns found: ['Unnamed: 0', 'Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']...
+   FIELD MAPPING:
+     [OK] DATE: 'Service Date'
+     [OK] LANGUAGE: 'Language'
+     [OK] MINUTES: 'Duration'
+     [OK] COST: 'Total Charge'
+     [WARN] MODALITY: NOT FOUND (will default to UNKNOWN)
+
+[FILE] Nuvance - Cyracom Utilization.xlsx
+   Size: 0.1 MB | Rows: 1588 | Sheets: 1
+   Columns found: ['Year-Month', 'CustomerNo', 'CustomerName', 'AccountNo', 'AccountDescription']...
+   FIELD MAPPING:
+     [CRITICAL] DATE: NOT FOUND
+     [OK] LANGUAGE: 'Language'
+     [OK] MINUTES: 'MinuteswithTPD'
+     [OK] COST: 'ChargeswithTPD'
+     [OK] MODALITY: 'Servicey Type'
+   ISSUES:
+     - MISSING REQUIRED: 'date' column not found
+
+[FILE] Peak Vista - AMN Download.xls
+   Size: 18.0 MB | Rows: Large file - estimated 100k+ | Sheets: 1
+   Columns found: ['PHI Data Collection Report', 'Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']...
+   FIELD MAPPING:
+     [CRITICAL] DATE: NOT FOUND
+     [CRITICAL] LANGUAGE: NOT FOUND
+     [CRITICAL] MINUTES: NOT FOUND
+     [WARN] COST: NOT FOUND (will flag for rate card)
+     [WARN] MODALITY: NOT FOUND (will default to UNKNOWN)
+   ISSUES:
+     - MISSING REQUIRED: 'date' column not found
+     - MISSING REQUIRED: 'language' column not found
+     - MISSING REQUIRED: 'minutes' column not found
+     - WARNING: 'cost' column not found (will need rate card)
+
+[FILE] VFC - Pacific Interpreters Invoice.xls
+   Size: 0.2 MB | Rows: 71 | Sheets: 5
+   Columns found: ['Unnamed: 0', 'Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']...
+   FIELD MAPPING:
+     [CRITICAL] DATE: NOT FOUND
+     [CRITICAL] LANGUAGE: NOT FOUND
+     [CRITICAL] MINUTES: NOT FOUND
+     [WARN] COST: NOT FOUND (will flag for rate card)
+     [WARN] MODALITY: NOT FOUND (will default to UNKNOWN)
+   ISSUES:
+     - MISSING REQUIRED: 'date' column not found
+     - MISSING REQUIRED: 'language' column not found
+     - MISSING REQUIRED: 'minutes' column not found
+     - WARNING: 'cost' column not found (will need rate card)
+
+[FILE] Wellspace - LanguageLine Invoice.XLS
+   Size: 2.3 MB | Rows: 112 | Sheets: 5
+   Columns found: ['Unnamed: 0', 'Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']...
+   FIELD MAPPING:
+     [CRITICAL] DATE: NOT FOUND
+     [CRITICAL] LANGUAGE: NOT FOUND
+     [CRITICAL] MINUTES: NOT FOUND
+     [WARN] COST: NOT FOUND (will flag for rate card)
+     [WARN] MODALITY: NOT FOUND (will default to UNKNOWN)
+   ISSUES:
+     - MISSING REQUIRED: 'date' column not found
+     - MISSING REQUIRED: 'language' column not found
+     - MISSING REQUIRED: 'minutes' column not found
+     - WARNING: 'cost' column not found (will need rate card)
+
+================================================================================
+OVERALL PIPELINE COMPATIBILITY ASSESSMENT
+================================================================================
+
+    FILES ANALYZED: 5
+    
+    [OK] Fully Compatible:      1 files (have date, language, minutes)
+    [WARN] Partially Compatible: 1 files (missing 1 required field)
+    [CRITICAL] Problematic:     3 files (missing 2+ required fields)
+    
+    COST DATA STATUS:
+
+      Healthpoint - Propio Transaction Download.xls: [OK] Has cost data
+      Nuvance - Cyracom Utilization.xlsx: [OK] Has cost data
+      Peak Vista - AMN Download.xls: [WARN] NO cost data (needs rate card)
+      VFC - Pacific Interpreters Invoice.xls: [WARN] NO cost data (needs rate card)
+      Wellspace - LanguageLine Invoice.XLS: [WARN] NO cost data (needs rate card)
+
+    
+    RECOMMENDATION:
+    - Files WITH cost data: Pipeline produces accurate baseline
+    - Files WITHOUT cost data: Populate rate_card_current.csv with contract rates
+    

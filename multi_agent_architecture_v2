@@ -1,0 +1,56 @@
+// Multi-Agent Baseline Factory Architecture
+digraph {
+	dpi=300 rankdir=LR size="12,8"
+	subgraph cluster_0 {
+		color=lightgrey label="Orchestration Layer" style=filled
+		Orchestrator [label="Orchestrator Agent
+(Workflow Manager)" color=white shape=hexagon style=filled]
+	}
+	subgraph cluster_1 {
+		color="#e1f5fe" label="Intake & Extraction Layer" style=filled
+		Intake [label="Intake Agent
+(File Scanner)" color=white shape=box style=filled]
+		Schema [label="Schema Agent
+(Header Mapper)" color=white shape=box style=filled]
+	}
+	subgraph cluster_2 {
+		color="#fff9c4" label="Standardization & Enrichment" style=filled
+		Standardizer [label="Standardizer Agent
+(Canonical Record)" color=white shape=box style=filled]
+		RateCard [label="Rate Card Agent
+(Cost Imputation)" color=white shape=box style=filled]
+		QA [label="QA Agent
+(Anomaly Detection)" color=white shape=box style=filled]
+	}
+	subgraph cluster_3 {
+		color="#e0f2f1" label="Analytics Layer" style=filled
+		Aggregator [label="Aggregator Agent
+(Baseline Table)" color=white shape=box style=filled]
+		Analyst [label="Analyst Agent
+(Mix/Rate Analysis)" color=white shape=box style=filled]
+		Benchmark [label="Benchmark Agent
+(Market Comp)" color=white shape=box style=filled]
+	}
+	subgraph cluster_4 {
+		color="#f3e5f5" label="Strategic Layer" style=filled
+		Simulator [label="Simulator Agent
+(Whaf-If Scenarios)" color=white shape=box style=filled]
+		Advisor [label="Advisor Agent
+(Recommendations)" color=white shape=box style=filled]
+		Composer [label="Report Composer
+(Final Output)" color=gold shape=component style=filled]
+	}
+	Orchestrator -> Intake [label="Start Job"]
+	Intake -> Schema [label="Raw Data"]
+	Schema -> Standardizer [label=Mapping]
+	Standardizer -> RateCard [label="Missing Cost?"]
+	RateCard -> Standardizer [label="Imputed Rates"]
+	Standardizer -> QA [label="Canonical Data"]
+	QA -> Aggregator [label="Clean Records"]
+	Aggregator -> Analyst [label="Baseline v1"]
+	Aggregator -> Benchmark [label="Effective Rates"]
+	Analyst -> Simulator [label="Trends/Mix"]
+	Benchmark -> Simulator [label="Market Gaps"]
+	Simulator -> Advisor [label="Savings Potential"]
+	Advisor -> Composer [label="Oppty Register"]
+}

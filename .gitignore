@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+
+# Project Data & Temp
+data_files/
+temp_uploads/
+output/
+baseline_v1_output.csv
+baseline_transactions.csv
+BASELINE_REPORT.txt
+pipeline_log.txt
+*.zip
+*.log
+
+# Artifacts & Extraction
+extracted_report_content/
+baseline reports lt/
+
+# Editor
+.vscode/
+.idea/
