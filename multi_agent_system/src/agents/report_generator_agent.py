@@ -9,6 +9,7 @@ similar professional output automatically.
 import pandas as pd
 from datetime import datetime
 import os
+from pathlib import Path
 
 class ReportGeneratorAgent:
     """Generates a professional baseline report from pipeline output."""
@@ -226,7 +227,7 @@ class ReportGeneratorAgent:
 
 # Run the agent
 if __name__ == "__main__":
-    BASE_DIR = r"c:\Users\John\.gemini\antigravity\playground\multiagent-baseline-lt"
+    BASE_DIR = Path(__file__).resolve().parents[2]
     
     agent = ReportGeneratorAgent(
         baseline_csv=os.path.join(BASE_DIR, "baseline_v1_output.csv"),

@@ -38,7 +38,8 @@ class StandardizerAgent:
 
                 # 3. Parse Metrics
                 mins = self._parse_float(row.get(mapping.get("minutes"), 0))
-                charge = self._parse_float(row.get(mapping.get("charge"), 0))
+                charge_col = mapping.get("charge") or mapping.get("cost")
+                charge = self._parse_float(row.get(charge_col, 0))
                 
                 # 4. Parse Modality
                 # If mapped, use it. If not, flag as UNKNOWN (data faithful)
@@ -71,8 +72,10 @@ class StandardizerAgent:
         if pd.isna(val):
             return None
         
-        if isinstance(val, (datetime.datetime, datetime.date)):
-            return val if isinstance(val, datetime.date) else val.date()
+        if isinstance(val, datetime.datetime):
+            return val.date()
+        if isinstance(val, datetime.date):
+            return val
             
         # String parsing
         val_str = str(val).split(" ")[0].strip() # Remove time

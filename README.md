@@ -7,6 +7,7 @@
 ## 🚀 Quick Links
 - **[Executive Summary](EXECUTIVE_SUMMARY.md)** - 📊 Final results, savings, and strategy (**Start Here** for business insights).
 - **[Quick Start Guide](QUICK_START.md)** - 🏃 Instruction manual for running the pipeline on new data.
+- **[Dashboard UI](dashboard_enhanced.py)** - 🖥️ Run `streamlit run dashboard_enhanced.py` (**primary UI**).
 - **[Project Completion](PROJECT_COMPLETION.md)** - 🏆 Comprehensive technical report, metrics, and roadmap.
 - **[Implementation Plan](CURRENT_IMPLEMENTATION_PLAN.md)** - 🗺️ Original project roadmap and status.
 
@@ -43,6 +44,12 @@ The system will output:
 - **`pipeline_log.txt`**: Detailed processing logs.
 - **Console Report**: Real-time insights from all 9 agents.
 
+## 🖥️ UI Dashboard
+```bash
+streamlit run dashboard_enhanced.py
+```
+Note: `dashboard_legacy.py` is legacy and will be removed in a future cleanup.
+
 ---
 
 ## 📁 Repository Structure
@@ -52,6 +59,8 @@ The system will output:
 │   ├── src/agents/             # Individual agent logic
 │   └── run_pipeline.py         # Main orchestrator script
 ├── data_files/                 # Input data directory
+├── dashboard_enhanced.py        # Primary Streamlit UI
+├── dashboard_legacy.py          # Legacy UI (deprecated)
 ├── baseline_v1_output.csv      # Output database
 └── rate_card_current.csv       # Configuration for rates
 ```

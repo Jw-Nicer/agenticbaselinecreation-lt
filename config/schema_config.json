@@ -1,0 +1,36 @@
+{
+  "auto_learn": true,
+  "require_manual_approval": true,
+  "min_field_confidence": 0.75,
+  "min_data_confidence": 0.70,
+  "min_final_confidence": 0.60,
+  "auto_approve_field_confidence": 0.90,
+  "auto_approve_data_confidence": 0.85,
+  "heuristic_validation": {
+    "enabled": true,
+    "min_type_confidence": 0.65,
+    "min_date_parse": 0.6,
+    "min_numeric_rate": 0.6,
+    "min_language_match": 0.3
+  },
+  "heuristic_ai_validation": {
+    "enabled": true,
+    "min_field_confidence": 0.6,
+    "require_overall_ok": true,
+    "min_overall_confidence": 0.65
+  },
+  "ai_prompting": {
+    "use_few_shot": true,
+    "include_vendor_context": true,
+    "min_ai_field_confidence": 0.5
+  },
+  "type_inference": {
+    "enabled": true,
+    "sample_size": 100,
+    "min_type_confidence": 0.6
+  },
+  "active_learning": {
+    "enabled": true,
+    "apply_vendor_hints": true
+  }
+}

@@ -19,6 +19,7 @@ pipeline_log.txt
 # Artifacts & Extraction
 extracted_report_content/
 baseline reports lt/
+agent_memory/
 
 # Editor
 .vscode/

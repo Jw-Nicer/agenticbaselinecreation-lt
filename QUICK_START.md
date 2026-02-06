@@ -8,6 +8,7 @@ This guide will help you run the baseline factory on new data files.
 
 - Python 3.11+
 - Required packages: `pandas`, `openpyxl`, `xlrd`
+- Optional (for UI): `streamlit`, `plotly`
 
 ---
 
@@ -32,6 +33,12 @@ The pipeline will generate:
 - `baseline_v1_output.csv` - Your final baseline table
 - `pipeline_log.txt` - Detailed processing log
 - Console output with all agent reports
+
+## 🖥️ Optional: Run the Dashboard
+```bash
+streamlit run dashboard_enhanced.py
+```
+Note: `dashboard_legacy.py` is legacy and will be removed in a future cleanup.
 
 ---
 

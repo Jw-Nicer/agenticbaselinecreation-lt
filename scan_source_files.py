@@ -6,13 +6,15 @@ Deeply analyzes each language service file to ensure pipeline compatibility.
 import pandas as pd
 import os
 import sys
+from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
 # Force UTF-8 output
 sys.stdout.reconfigure(encoding='utf-8')
 
-DATA_DIR = r"c:\Users\John\.gemini\antigravity\playground\multiagent-baseline-lt\data_files\Language Services"
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = str(BASE_DIR / "data_files" / "Language Services")
 
 # Define what columns we need for the baseline
 REQUIRED_FIELDS = {

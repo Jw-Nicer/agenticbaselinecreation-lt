@@ -4,13 +4,17 @@ Verifies the pipeline can properly load and process each file.
 """
 
 import sys
-sys.path.insert(0, r'c:\Users\John\.gemini\antigravity\playground\multiagent-baseline-lt\multi_agent_system\src')
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+SRC_DIR = BASE_DIR / "multi_agent_system" / "src"
+sys.path.insert(0, str(SRC_DIR))
 
 from agents.intake_agent import IntakeAgent
 from agents.schema_agent import SchemaAgent
 import os
 
-DATA_DIR = r"c:\Users\John\.gemini\antigravity\playground\multiagent-baseline-lt\data_files\Language Services"
+DATA_DIR = str(BASE_DIR / "data_files" / "Language Services")
 
 def main():
     print("="*70)
@@ -53,27 +57,44 @@ def main():
             
             # Try schema mapping
             try:
-                mapping = schema.infer_mapping(list(df.columns), df.iloc[0] if len(df) > 0 else None)
-                confidence = schema.get_mapping_confidence(mapping)
+                vendor = filename.split(" ")[0].split("-")[0].replace("_", "")
+                mapping = schema.infer_mapping(
+                    list(df.columns),
+                    df.iloc[0] if len(df) > 0 else None,
+                    vendor=vendor,
+                    df=df
+                )
+                conf = schema.assess_mapping(df, mapping)
+                confidence = conf["final_confidence"]
+                source = schema.get_last_source()
                 
                 has_date = 'date' in mapping
                 has_lang = 'language' in mapping
                 has_mins = 'minutes' in mapping
-                has_cost = 'cost' in mapping
+                has_charge = 'charge' in mapping or 'cost' in mapping
                 
                 result['sheets'][sheet_name] = {
                     'rows': len(df),
                     'mapping': mapping,
                     'confidence': confidence,
-                    'has_required': has_date and has_lang and has_mins
+                    'has_required': has_date and has_lang and has_mins,
+                    'source': source
                 }
                 
-                print(f"  Mapping confidence: {confidence:.0%}")
+                print(f"  Mapping confidence: {confidence:.0%} (field {conf['field_confidence']:.0%}, data {conf['data_confidence']:.0%}, source {source})")
                 print(f"  Fields found:")
                 print(f"    Date:     {'[OK] ' + mapping.get('date', 'N/A') if has_date else '[MISSING]'}")
                 print(f"    Language: {'[OK] ' + mapping.get('language', 'N/A') if has_lang else '[MISSING]'}")
                 print(f"    Minutes:  {'[OK] ' + mapping.get('minutes', 'N/A') if has_mins else '[MISSING]'}")
-                print(f"    Cost:     {'[OK] ' + mapping.get('cost', 'N/A') if has_cost else '[WARN] Missing'}")
+                print(f"    Charge:   {'[OK] ' + mapping.get('charge', mapping.get('cost', 'N/A')) if has_charge else '[WARN] Missing'}")
+                
+                schema.confirm_mapping(
+                    source_columns=list(df.columns),
+                    mapping=mapping,
+                    vendor=vendor,
+                    data_confidence=conf["data_confidence"],
+                    field_confidence=conf["field_confidence"]
+                )
                 
             except Exception as e:
                 print(f"  [ERROR] Schema mapping failed: {e}")

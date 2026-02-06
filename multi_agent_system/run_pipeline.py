@@ -1,15 +1,23 @@
 
 import os
 import sys
+from pathlib import Path
+import json
 import pandas as pd
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Ensure src is in path
-current_dir = os.getcwd()
-src_path = os.path.join(current_dir, 'multi_agent_system', 'src')
-if os.path.exists(src_path):
-    sys.path.append(src_path)
+BASE_DIR = Path(__file__).resolve().parents[1]
+SRC_PATH = Path(__file__).resolve().parent / "src"
+if SRC_PATH.exists():
+    sys.path.append(str(SRC_PATH))
 else:
-    sys.path.append(os.path.join(current_dir, 'src'))
+    alt_src = BASE_DIR / "src"
+    if alt_src.exists():
+        sys.path.append(str(alt_src))
 
 from agents.intake_agent import IntakeAgent
 from agents.schema_agent import SchemaAgent
@@ -22,13 +30,18 @@ from agents.analyst_agent import AnalystAgent
 from agents.simulator_agent import SimulatorAgent
 from agents.aggregator_agent import AggregatorAgent
 from core.activity_logger import reset_logger, get_logger
+from core.ai_client import AIClient
 
 def main():
-    base_dir = r"c:\Users\John\.gemini\antigravity\playground\multiagent-baseline-lt"
-    data_dir = os.path.join(base_dir, "data_files", "Language Services")
+    base_dir = BASE_DIR
+    data_dir = base_dir / "data_files" / "Language Services"
     
     # Initialize activity logger
     logger = reset_logger()
+
+    ai_status = "ENABLED" if AIClient().enabled else "DISABLED"
+    print(f"AI MODE: {ai_status}")
+    logger.log("Orchestrator", "AI mode", {"status": ai_status})
     
     print("=" * 60)
     print("BASELINE FACTORY - MULTI-AGENT SYSTEM")
@@ -38,9 +51,9 @@ def main():
     # AGENT 1: INTAKE
     # =========================================================================
     print("\n[1/7] INTAKE AGENT - Scanning for files...")
-    logger.log("Intake Agent", "Started scanning", {"directory": data_dir})
+    logger.log("Intake Agent", "Started scanning", {"directory": str(data_dir)})
     
-    intake = IntakeAgent(data_dir)
+    intake = IntakeAgent(str(data_dir))
     files = intake.scan_files()
     
     logger.log("Intake Agent", "Files discovered", {"count": len(files)})
@@ -61,6 +74,8 @@ def main():
     reconciler = ReconciliationAgent()
     
     files_with_issues = []
+    schema_audit_log = []
+    std_audit_log = []
     
     # =========================================================================
     # AGENT 2 & 3: SCHEMA + STANDARDIZER (per file)
@@ -79,19 +94,55 @@ def main():
         
         for sheet_name, df in sheets.items():
             cols = list(df.columns)
-            mapping = schema_detective.infer_mapping(cols)
-            score = schema_detective.validate_mapping(mapping)
+            mapping = schema_detective.infer_mapping(
+                cols,
+                df.iloc[0] if len(df) > 0 else None,
+                vendor=vendor,
+                df=df
+            )
+            conf = schema_detective.assess_mapping(df, mapping)
+            score = conf["final_confidence"]
+            min_final = schema_detective.min_final_confidence
+            source = schema_detective.get_last_source()
             
             logger.log("Schema Agent", "Column mapping", {
                 "sheet": sheet_name,
                 "confidence": f"{score:.0%}",
+                "field_confidence": f"{conf['field_confidence']:.0%}",
+                "data_confidence": f"{conf['data_confidence']:.0%}",
+                "source": source,
                 "mapped_fields": list(mapping.keys())
             })
             
-            if score < 0.5:
+            schema_audit_log.append({
+                "File": filename,
+                "Sheet": sheet_name,
+                "Confidence": f"{score:.1%}",
+                "Field Confidence": f"{conf['field_confidence']:.1%}",
+                "Data Confidence": f"{conf['data_confidence']:.1%}",
+                "Source": source,
+                "AI Reasoning": schema_detective.get_last_ai_reasoning(),
+                "Status": "Success" if score >= min_final else "Skipped (Low Confidence)",
+                "Columns Mapped": len(mapping),
+                "Mapping": str(mapping) if score < 0.5 else None,
+                "Date Col": mapping.get('date', 'MISSING'),
+                "Lang Col": mapping.get('language', 'MISSING'),
+                "Mins Col": mapping.get('minutes', 'MISSING'),
+                "Cost Col": mapping.get('charge', mapping.get('cost', 'MISSING'))
+            })
+            
+            if score < min_final:
                 logger.log("Schema Agent", "SKIPPED - Low confidence", {"sheet": sheet_name})
                 files_with_issues.append(f"{filename}/{sheet_name}: Low mapping confidence ({score:.0%})")
                 continue
+
+            schema_detective.confirm_mapping(
+                source_columns=cols,
+                mapping=mapping,
+                vendor=vendor,
+                data_confidence=conf["data_confidence"],
+                field_confidence=conf["field_confidence"]
+            )
             
             # Standardize
             new_records = standardizer.process_dataframe(df, mapping, filename, vendor)
@@ -100,6 +151,15 @@ def main():
                 "file": filename,
                 "sheet": sheet_name,
                 "records": len(new_records)
+            })
+            
+            std_audit_log.append({
+                "File": filename,
+                "Sheet": sheet_name,
+                "Input Rows": len(df),
+                "Extracted Records": len(new_records),
+                "Dropped Rows": len(df) - len(new_records),
+                "Status": "Success"
             })
             
             print(f"    {filename}: {len(new_records):,} records (confidence: {score:.0%})")
@@ -153,7 +213,7 @@ def main():
     # =========================================================================
     # AGENT 5: MODALITY
     # =========================================================================
-    print(f"\n[5/7] MODALITY AGENT - Refining service types...")
+    print(f"\n[5/9] MODALITY AGENT - Refining service types...")
     logger.log("Modality Agent", "Started refinement", {"input_records": len(records)})
     
     modality_agent = ModalityRefinementAgent()
@@ -175,14 +235,14 @@ def main():
     
     logger.set_summary("Modality Agent", {
         "key_metric": f"OPI:{m_stats['OPI']:,} VRI:{m_stats['VRI']:,}",
-        "status": "OK" if m_stats['Unknown'] == 0 else "OK",
+        "status": "OK" if m_stats['Unknown'] == 0 else "ISSUES",
         "issues": modality_issues
     })
     
     # =========================================================================
     # AGENT 6: QA
     # =========================================================================
-    print(f"\n[6/7] QA AGENT - Finding duplicates and outliers...")
+    print(f"\n[6/9] QA AGENT - Finding duplicates and outliers...")
     logger.log("QA Agent", "Started validation", {"input_records": len(records)})
     
     qa_agent = QAgent()
@@ -214,11 +274,43 @@ def main():
         "status": "OK" if qa_stats['critical_errors_quarantined'] == 0 else "ISSUES",
         "issues": qa_issues
     })
+
+    # =========================================================================
+    # AGENT 7: RECONCILIATION
+    # =========================================================================
+    print(f"\n[7/9] RECONCILIATION AGENT - Matching invoice totals...")
+    logger.log("Reconciliation Agent", "Started reconciliation", {"input_records": len(records)})
+    
+    recon_results = reconciler.run_reconciliation(records)
+    overall_status = recon_results.get("overall_status", "UNKNOWN")
+    total_variance = recon_results.get("total_variance", 0.0)
+    
+    logger.log("Reconciliation Agent", "Reconciliation complete", {
+        "overall_status": overall_status,
+        "total_variance": f"${total_variance:,.2f}",
+        "vendors": len(recon_results.get("vendors", {}))
+    })
+    
+    print(f"    Overall status: {overall_status}")
+    print(f"    Total variance: ${total_variance:,.2f}")
+    
+    recon_issues = []
+    for vendor, stats in recon_results.get("vendors", {}).items():
+        if stats.get("status") != "MATCH":
+            recon_issues.append(
+                f"{vendor}: {stats.get('status')} (variance {stats.get('variance_pct', 0):.2f}%)"
+            )
+    
+    logger.set_summary("Reconciliation Agent", {
+        "key_metric": f"{overall_status} | ${total_variance:,.2f} variance",
+        "status": "OK" if overall_status == "MATCH" else "ISSUES",
+        "issues": recon_issues
+    })
     
     # =========================================================================
-    # AGENT 7: AGGREGATOR
+    # AGENT 8: AGGREGATOR
     # =========================================================================
-    print(f"\n[7/7] AGGREGATOR AGENT - Creating baseline...")
+    print(f"\n[8/9] AGGREGATOR AGENT - Creating baseline...")
     logger.log("Aggregator Agent", "Started aggregation", {"input_records": len(records)})
     
     aggregator = AggregatorAgent()
@@ -244,6 +336,47 @@ def main():
         "status": "OK",
         "issues": []
     })
+
+    # =========================================================================
+    # AGENT 9: STRATEGY (ANALYST + SIMULATOR)
+    # =========================================================================
+    print(f"\n[9/9] STRATEGY AGENTS - Variance and savings analysis...")
+    
+    # Analyst
+    analyst = AnalystAgent()
+    analysis_results = analyst.analyze_variance(baseline_table)
+    if isinstance(analysis_results, dict) and "status" not in analysis_results:
+        analyst.print_summary(analysis_results)
+        latest_period = list(analysis_results.keys())[-1] if analysis_results else None
+        latest_variance = analysis_results[latest_period]["total_variance"] if latest_period else 0.0
+        analyst_summary = f"{latest_period}: ${latest_variance:,.2f} variance" if latest_period else "Variance analysis complete"
+        analyst_status = "OK"
+        analyst_issues = []
+    else:
+        analyst_summary = analysis_results.get("status", "Variance analysis unavailable")
+        analyst_status = "ISSUES"
+        analyst_issues = [analyst_summary]
+    
+    logger.set_summary("Analyst Agent", {
+        "key_metric": analyst_summary,
+        "status": analyst_status,
+        "issues": analyst_issues
+    })
+    
+    # Simulator
+    simulator = SimulatorAgent()
+    sim_results = simulator.run_scenarios(baseline_table)
+    simulator.print_opportunity_register(sim_results)
+    total_savings = sum(
+        s.get("annual_impact", 0) for s in sim_results.get("scenarios", {}).values()
+        if isinstance(s, dict)
+    )
+    
+    logger.set_summary("Simulator Agent", {
+        "key_metric": f"${total_savings:,.2f} potential savings",
+        "status": "OK",
+        "issues": []
+    })
     
     # =========================================================================
     # SAVE OUTPUTS
@@ -253,7 +386,7 @@ def main():
     print("=" * 60)
     
     # Save baseline
-    v1_path = os.path.join(base_dir, "baseline_v1_output.csv")
+    v1_path = base_dir / "baseline_v1_output.csv"
     baseline_table.to_csv(v1_path, index=False)
     print(f"  Baseline saved to: baseline_v1_output.csv")
     
@@ -261,14 +394,26 @@ def main():
     transactions_df = pd.DataFrame([vars(r) for r in records])
     if 'date' in transactions_df.columns:
         transactions_df['date'] = transactions_df['date'].astype(str)
-    trans_path = os.path.join(base_dir, "baseline_transactions.csv")
+    trans_path = base_dir / "baseline_transactions.csv"
     transactions_df.to_csv(trans_path, index=False)
     print(f"  Transactions saved to: baseline_transactions.csv")
     
     # Save Activity Log
-    log_path = os.path.join(base_dir, "AGENT_ACTIVITY_LOG.md")
+    log_path = base_dir / "AGENT_ACTIVITY_LOG.md"
     logger.save_report(log_path)
     print(f"  Activity log saved to: AGENT_ACTIVITY_LOG.md")
+
+    # Save Agent Audit Logs (JSON)
+    audit_data = {
+        'intake': intake.file_diagnostics,
+        'schema': schema_audit_log,
+        'standardizer': std_audit_log
+    }
+    
+    audit_path = base_dir / "audit_logs.json"
+    with open(audit_path, 'w') as f:
+        json.dump(audit_data, f, indent=2)
+    print(f"  Agent audit logs saved to: audit_logs.json")
     
     print("\n" + "=" * 60)
     print("PIPELINE COMPLETE")

@@ -6,11 +6,25 @@ import os
 import shutil
 import time
 import sys
+import json
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+if load_dotenv:
+    load_dotenv()
 
 # Add parent dir to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(os.path.abspath(os.path.join(BASE_DIR, '..')))
 # Add 'src' dir to path so internal 'core' imports work
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'multi_agent_system', 'src')))
+sys.path.append(os.path.abspath(os.path.join(BASE_DIR, 'multi_agent_system', 'src')))
+
+DATA_DIR = os.path.join(BASE_DIR, "data_files")
+BASELINE_CSV = os.path.join(BASE_DIR, "baseline_v1_output.csv")
+REPORT_TXT = os.path.join(BASE_DIR, "BASELINE_REPORT.txt")
+UPLOAD_DIR = os.path.join(BASE_DIR, "temp_uploads")
 
 from multi_agent_system.src.agents.intake_agent import IntakeAgent
 from multi_agent_system.src.agents.schema_agent import SchemaAgent
@@ -58,16 +72,28 @@ with st.sidebar:
     st.divider()
     
     # --- Load Previous Button ---
-    if os.path.exists("baseline_v1_output.csv"):
+    if os.path.exists(BASELINE_CSV):
         if st.button("📂 Load Previous Analysis"):
             try:
-                df_load = pd.read_csv("baseline_v1_output.csv")
+                df_load = pd.read_csv(BASELINE_CSV)
                 st.session_state.baseline_data = df_load
                 st.session_state.processing_complete = True
                 
-                if os.path.exists("BASELINE_REPORT.txt"):
-                    with open("BASELINE_REPORT.txt", "r", encoding="utf-8") as f:
+                if os.path.exists(REPORT_TXT):
+                    with open(REPORT_TXT, "r", encoding="utf-8") as f:
                         st.session_state.baseline_report_text = f.read()
+                
+                # Load Audit Logs
+                AUDIT_JSON = os.path.join(BASE_DIR, "audit_logs.json")
+                if os.path.exists(AUDIT_JSON):
+                    with open(AUDIT_JSON, "r") as f:
+                        loaded_logs = json.load(f)
+                        st.session_state.audit_logs = {
+                            'intake': loaded_logs.get('intake', {}),
+                            'schema': pd.DataFrame(loaded_logs.get('schema', [])),
+                            'standardizer': pd.DataFrame(loaded_logs.get('standardizer', []))
+                        }
+                
                 st.rerun()
             except Exception as e:
                 st.error(f"Failed to load: {e}")
@@ -97,7 +123,7 @@ if run_btn:
     st.session_state.processing_complete = False
     
     # Setup Temp Dir
-    upload_dir = "temp_uploads"
+    upload_dir = UPLOAD_DIR
     if os.path.exists(upload_dir):
         shutil.rmtree(upload_dir)
     os.makedirs(upload_dir)
@@ -121,10 +147,10 @@ if run_btn:
                 loaded_files.append(uploaded_file.name)
         
         # Process Local Files
-        if use_local and os.path.exists("data_files"):
-            for f in os.listdir("data_files"):
+        if use_local and os.path.exists(DATA_DIR):
+            for f in os.listdir(DATA_DIR):
                 if f.endswith(('.xlsx', '.xls', '.csv')) and not f.startswith('~$'):
-                    src = os.path.join("data_files", f)
+                    src = os.path.join(DATA_DIR, f)
                     dst = os.path.join(upload_dir, f)
                     shutil.copy2(src, dst)
                     file_paths.append(dst)
@@ -160,26 +186,47 @@ if run_btn:
                 
                 # Detect
                 columns = df.columns.tolist()
-                mapping = schema_detective.infer_mapping(columns)
-                confidence = schema_detective.validate_mapping(mapping)
+                mapping = schema_detective.infer_mapping(
+                    columns,
+                    df.iloc[0] if len(df) > 0 else None,
+                    vendor=vendor_name,
+                    df=df
+                )
+                conf = schema_detective.assess_mapping(df, mapping)
+                confidence = conf["final_confidence"]
+                source = schema_detective.get_last_source()
                 
-                if confidence > 0.4:
+                min_final = schema_detective.min_final_confidence
+                if confidence > min_final:
                     agent_thinking_log(f"Schema Agent ({os.path.basename(fp)})", [
                         f"Sheet: '{sheet_name}'",
-                        f"Confidence: {int(confidence*100)}% match",
-                        f"Mapped {len(mapping)} critical columns"
+                        f"Confidence: {int(confidence*100)}% match (field {int(conf['field_confidence']*100)}%, data {int(conf['data_confidence']*100)}%)",
+                        f"Mapped {len(mapping)} critical columns",
+                        f"Source: {source}"
                     ])
                     
                     schema_audit_log.append({
                         "File": os.path.basename(fp),
                         "Sheet": sheet_name,
                         "Confidence": f"{confidence:.1%}",
+                        "Field Confidence": f"{conf['field_confidence']:.1%}",
+                        "Data Confidence": f"{conf['data_confidence']:.1%}",
+                        "Source": source,
+                        "AI Reasoning": schema_detective.get_last_ai_reasoning(),
                         "Columns Mapped": len(mapping),
                         "Date Col": mapping.get('date', 'MISSING'),
                         "Lang Col": mapping.get('language', 'MISSING'),
                         "Mins Col": mapping.get('minutes', 'MISSING'),
                         "Cost Col": mapping.get('charge', mapping.get('cost', 'MISSING'))
                     })
+                    
+                    schema_detective.confirm_mapping(
+                        source_columns=columns,
+                        mapping=mapping,
+                        vendor=vendor_name,
+                        data_confidence=conf["data_confidence"],
+                        field_confidence=conf["field_confidence"]
+                    )
                     
                     # Standardize
                     new_records = standardizer.process_dataframe(df, mapping, fp, vendor_name)
@@ -200,6 +247,9 @@ if run_btn:
                         "File": os.path.basename(fp),
                         "Sheet": sheet_name,
                         "Confidence": f"{confidence:.1%}",
+                        "Field Confidence": f"{conf['field_confidence']:.1%}",
+                        "Data Confidence": f"{conf['data_confidence']:.1%}",
+                        "Source": source,
                         "Status": "Skipped (Low Confidence)",
                         "Mapping": str(mapping)
                     })

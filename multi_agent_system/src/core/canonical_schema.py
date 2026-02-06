@@ -33,7 +33,7 @@ CANONICAL_FIELDS = {
     "date": ["date", "call date", "invoice date", "service date", "job date", "start date", "year-month", "month", "period"],
     "language": ["language", "lang", "source language", "target language"],
     "minutes": ["duration", "minutes", "min", "qty", "quantity", "billable time", "connect time (minutes:seconds)", "minuteswithtpd"],
-    "charge": ["total charge", "amount", "total", "line total", "extended price", "chargeswithtpd", "charges"],
+    "charge": ["total charge", "amount", "total", "line total", "extended price", "chargeswithtpd", "charges", "cost", "total cost"],
     "rate": ["rate", "unit price", "price"],
     "modality": ["service line", "service type", "modality", "product"]
 }

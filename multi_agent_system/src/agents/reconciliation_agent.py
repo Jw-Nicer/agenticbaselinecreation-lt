@@ -28,7 +28,9 @@ class ReconciliationAgent:
             data_list = df.astype(str).values.flatten().tolist()
             
             for i, val in enumerate(data_list):
-                cleaned_val = val.lower().strip()
+                if pd.isna(val):
+                    continue
+                cleaned_val = str(val).lower().strip()
                 if any(k in cleaned_val for k in keywords):
                     # Look in subsequent cells for a float
                     for offset in range(1, 10):

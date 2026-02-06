@@ -1,0 +1,430 @@
+{
+  "intake": {
+    "C:\\Users\\John\\.gemini\\antigravity\\playground\\multiagent-baseline-lt\\data_files\\Language Services\\Healthpoint - Propio Transaction Download.xlsx": {
+      "file": "Healthpoint - Propio Transaction Download.xlsx",
+      "sheets_analyzed": [
+        {
+          "sheet": "ag-grid",
+          "score": 10,
+          "header_row": 0,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "sheet": "Pivot",
+          "score": 6,
+          "header_row": 2,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "sheet": "Beyond a Year",
+          "score": 3,
+          "header_row": 1,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        }
+      ],
+      "best_sheet": "ag-grid"
+    },
+    "C:\\Users\\John\\.gemini\\antigravity\\playground\\multiagent-baseline-lt\\data_files\\Language Services\\Nuvance - Cyracom Utilization.xlsx": {
+      "file": "Nuvance - Cyracom Utilization.xlsx",
+      "sheets_analyzed": [
+        {
+          "sheet": "Raw Data OPI.VRI",
+          "score": 7,
+          "header_row": 0,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        }
+      ],
+      "best_sheet": "Raw Data OPI.VRI"
+    },
+    "C:\\Users\\John\\.gemini\\antigravity\\playground\\multiagent-baseline-lt\\data_files\\Language Services\\Peak Vista - AMN Download.xls": {
+      "file": "Peak Vista - AMN Download.xls",
+      "sheets_analyzed": [
+        {
+          "sheet": "Sheet0",
+          "score": 9,
+          "header_row": 8,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        }
+      ],
+      "best_sheet": "Sheet0"
+    },
+    "C:\\Users\\John\\.gemini\\antigravity\\playground\\multiagent-baseline-lt\\data_files\\Language Services\\VFC - Pacific Interpreters Invoice.xls": {
+      "file": "VFC - Pacific Interpreters Invoice.xls",
+      "sheets_analyzed": [
+        {
+          "sheet": "Invoice",
+          "score": 4,
+          "header_row": 11,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "sheet": "Aging",
+          "score": 3,
+          "header_row": 17,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "sheet": "Adj,Equip,Other Charges",
+          "score": 2,
+          "header_row": 3,
+          "classification": {
+            "type": "invoice",
+            "confidence": 0.8,
+            "source": "ai",
+            "rationale": "The sheet contains terms commonly associated with invoices such as 'ADJUSTMENTS', 'EQUIPMENT CHARGES', 'Date', 'Description', 'Quantity', 'Charge(+)', 'Credit(-)', 'Unit Price', and 'Extended Price'. These suggest that the sheet is likely summarizing charges and credits related to services or products, which is typical for an invoice. The presence of 'TOTAL:' further supports this classification."
+          }
+        },
+        {
+          "sheet": "Call Summary",
+          "score": 1,
+          "header_row": null,
+          "classification": {
+            "type": "unknown",
+            "confidence": 0.9,
+            "source": "ai",
+            "rationale": "The sheet contains a summary of telephone interpretation services, listing different clinics with corresponding call counts, minutes, and billed amounts. The presence of financial figures and totals suggests it is part of an invoice or transaction summary."
+          }
+        },
+        {
+          "sheet": "Call Detail",
+          "score": 6,
+          "header_row": 2,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        }
+      ],
+      "best_sheet": "Call Detail"
+    },
+    "C:\\Users\\John\\.gemini\\antigravity\\playground\\multiagent-baseline-lt\\data_files\\Language Services\\Wellspace - LanguageLine Invoice.XLS": {
+      "file": "Wellspace - LanguageLine Invoice.XLS",
+      "sheets_analyzed": [
+        {
+          "sheet": "Invoice",
+          "score": 3,
+          "header_row": null,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "sheet": "Misc Charges Detail",
+          "score": 3,
+          "header_row": 4,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "sheet": "Insight",
+          "score": 7,
+          "header_row": 5,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "sheet": "Call Detail",
+          "score": 8,
+          "header_row": 11,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "sheet": "Call Detail Summary Report",
+          "score": 8,
+          "header_row": 3,
+          "classification": {
+            "type": "transaction",
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        }
+      ],
+      "best_sheet": "Call Detail"
+    }
+  },
+  "schema": [
+    {
+      "File": "Healthpoint - Propio Transaction Download.xlsx",
+      "Sheet": "ag-grid",
+      "Confidence": "100.0%",
+      "Field Confidence": "100.0%",
+      "Data Confidence": "100.0%",
+      "Source": "ai",
+      "AI Reasoning": "Service Date is in a clear date format (YYYY-MM-DD), making it the best candidate for the date field. Language directly specifies the interpreted language. Duration is labeled as such and is numeric, indicating call duration in minutes. Total Charge is the total cost, clearly labeled and numeric. Rate is labeled and represents the per-minute rate. Service Line indicates the type of service provided, which aligns with the modality field.",
+      "Status": "Success",
+      "Columns Mapped": 6,
+      "Mapping": null,
+      "Date Col": "Service Date",
+      "Lang Col": "Language",
+      "Mins Col": "Duration",
+      "Cost Col": "Total Charge"
+    },
+    {
+      "File": "Healthpoint - Propio Transaction Download.xlsx",
+      "Sheet": "Pivot",
+      "Confidence": "96.2%",
+      "Field Confidence": "100.0%",
+      "Data Confidence": "100.0%",
+      "Source": "ai",
+      "AI Reasoning": "MM-YY contains a date format with a timestamp, indicating a period date. Language clearly specifies the interpreted language. Sum of Duration is a numeric value representing the total minutes. Sum of Total Charge is the total cost, as indicated by the term 'Sum of' and the numeric value. Rate is a numeric value that likely represents the per-minute rate. Service Line indicates the type of service provided, which is OPI in this case.",
+      "Status": "Success",
+      "Columns Mapped": 6,
+      "Mapping": null,
+      "Date Col": "MM-YY",
+      "Lang Col": "Language",
+      "Mins Col": "Sum of Duration",
+      "Cost Col": "Sum of Total Charge"
+    },
+    {
+      "File": "Healthpoint - Propio Transaction Download.xlsx",
+      "Sheet": "Beyond a Year",
+      "Confidence": "50.0%",
+      "Field Confidence": "50.0%",
+      "Data Confidence": "100.0%",
+      "Source": "ai",
+      "AI Reasoning": "The column '2023-12-01' contains a date in the YYYY-MM-DD format, making it the best candidate for the 'date' field. 'Amharic' is clearly the language interpreted. The column '18' represents a numeric value that aligns with typical call duration in minutes. '11.7' is a numeric value that fits the pattern of a total charge amount. '0.65' is a numeric value that fits the pattern of a per-minute rate. 'OPI' is a common modality abbreviation for Over-the-Phone Interpretation.",
+      "Status": "Skipped (Low Confidence)",
+      "Columns Mapped": 3,
+      "Mapping": null,
+      "Date Col": "2023-12-01",
+      "Lang Col": "Amharic",
+      "Mins Col": "MISSING",
+      "Cost Col": "MISSING"
+    },
+    {
+      "File": "Nuvance - Cyracom Utilization.xlsx",
+      "Sheet": "Raw Data OPI.VRI",
+      "Confidence": "98.0%",
+      "Field Confidence": "100.0%",
+      "Data Confidence": "100.0%",
+      "Source": "ai",
+      "AI Reasoning": "Year-Month is a period date format indicating the service month. Language clearly specifies the interpreted language. MinuteswithTPD contains the duration in minutes, and ChargeswithTPD represents the total charge amount. Rate is the per-minute rate, and Servicey Type indicates the service modality, which aligns with the canonical 'modality' field.",
+      "Status": "Success",
+      "Columns Mapped": 6,
+      "Mapping": null,
+      "Date Col": "Year-Month",
+      "Lang Col": "Language",
+      "Mins Col": "MinuteswithTPD",
+      "Cost Col": "ChargeswithTPD"
+    },
+    {
+      "File": "Peak Vista - AMN Download.xls",
+      "Sheet": "Sheet0",
+      "Confidence": "75.0%",
+      "Field Confidence": "75.0%",
+      "Data Confidence": "100.0%",
+      "Source": "ai",
+      "AI Reasoning": "Call Date contains a datetime format indicating the service date. Language is clearly specified as 'ASL'. Duration is labeled as such and represents the call duration in minutes. Session Type indicates the modality of the service, which is 'Video' in this case.",
+      "Status": "Success",
+      "Columns Mapped": 4,
+      "Mapping": null,
+      "Date Col": "Call Date",
+      "Lang Col": "Language",
+      "Mins Col": "Duration",
+      "Cost Col": "MISSING"
+    },
+    {
+      "File": "VFC - Pacific Interpreters Invoice.xls",
+      "Sheet": "Call Detail",
+      "Confidence": "100.0%",
+      "Field Confidence": "100.0%",
+      "Data Confidence": "100.0%",
+      "Source": "ai",
+      "AI Reasoning": "The 'Call Date & Time' column contains a datetime format, making it the best candidate for the 'date' field. 'Language' directly specifies the interpreted language, so it maps to 'language'. 'Min' is a common abbreviation for minutes, indicating call duration, thus mapping to 'minutes'. 'Billed' represents the total charge amount, making it suitable for the 'charge' field. 'Connect time (sec)' is in seconds, not minutes, and is not relevant for the 'minutes' field.",
+      "Status": "Success",
+      "Columns Mapped": 4,
+      "Mapping": null,
+      "Date Col": "Call Date & Time",
+      "Lang Col": "Language",
+      "Mins Col": "Min",
+      "Cost Col": "Billed"
+    },
+    {
+      "File": "VFC - Pacific Interpreters Invoice.xls",
+      "Sheet": "Invoice",
+      "Confidence": "25.0%",
+      "Field Confidence": "25.0%",
+      "Data Confidence": "100.0%",
+      "Source": "heuristic_ai",
+      "AI Reasoning": "The proposed 'minutes' column contains values like '10799.65' and '0.0', which are more indicative of monetary amounts rather than time in minutes. The values do not clearly match the intended meaning of 'minutes'.",
+      "Status": "Skipped (Low Confidence)",
+      "Columns Mapped": 1,
+      "Mapping": "{'minutes': 'Unnamed: 8'}",
+      "Date Col": "MISSING",
+      "Lang Col": "MISSING",
+      "Mins Col": "Unnamed: 8",
+      "Cost Col": "MISSING"
+    },
+    {
+      "File": "Wellspace - LanguageLine Invoice.XLS",
+      "Sheet": "Call Detail",
+      "Confidence": "100.0%",
+      "Field Confidence": "100.0%",
+      "Data Confidence": "100.0%",
+      "Source": "ai",
+      "AI Reasoning": "DATE contains a datetime format suitable for the service date. LANGUAGE clearly indicates the interpreted language. DURATION is labeled as such and represents the call duration in minutes. CHARGE is the total cost, as it is labeled and contains a numeric value consistent with a charge amount.",
+      "Status": "Success",
+      "Columns Mapped": 4,
+      "Mapping": null,
+      "Date Col": "DATE",
+      "Lang Col": "LANGUAGE",
+      "Mins Col": "DURATION",
+      "Cost Col": "CHARGE"
+    },
+    {
+      "File": "Wellspace - LanguageLine Invoice.XLS",
+      "Sheet": "Call Detail Summary Report",
+      "Confidence": "75.0%",
+      "Field Confidence": "75.0%",
+      "Data Confidence": "100.0%",
+      "Source": "ai",
+      "AI Reasoning": "Language is clearly indicated by the 'Language' column. 'Minutes' is directly labeled and represents the call duration. 'Charges' is the total cost, as it is the only column with a monetary value. 'Unnamed: 0' is not relevant, and 'Avg Interpreter Connect Time (Seconds)' is in seconds, not minutes. 'Avg Length of Call' and '% Total' do not directly map to any canonical fields.",
+      "Status": "Success",
+      "Columns Mapped": 3,
+      "Mapping": null,
+      "Date Col": "MISSING",
+      "Lang Col": "Language",
+      "Mins Col": "Minutes",
+      "Cost Col": "Charges"
+    },
+    {
+      "File": "Wellspace - LanguageLine Invoice.XLS",
+      "Sheet": "Insight",
+      "Confidence": "93.2%",
+      "Field Confidence": "100.0%",
+      "Data Confidence": "94.8%",
+      "Source": "cache",
+      "AI Reasoning": "The sample row provided contains mostly 'nan' values, which makes it difficult to determine the appropriate mappings for the canonical schema fields. The 'DATE' column contains a string that appears to be a concatenation of a number and text, which does not resemble a date format. Without valid sample data, it is not possible to confidently map any columns to the canonical schema fields.",
+      "Status": "Success",
+      "Columns Mapped": 4,
+      "Mapping": null,
+      "Date Col": "DATE",
+      "Lang Col": "LANGUAGE",
+      "Mins Col": "MINUTES",
+      "Cost Col": "CHARGES"
+    },
+    {
+      "File": "Wellspace - LanguageLine Invoice.XLS",
+      "Sheet": "Misc Charges Detail",
+      "Confidence": "50.0%",
+      "Field Confidence": "50.0%",
+      "Data Confidence": "100.0%",
+      "Source": "heuristic_ai",
+      "AI Reasoning": "The 'DATE' column contains valid date values, and the 'CHARGE(+)' column contains numeric values consistent with charges. Other fields are not mapped or do not have relevant data.",
+      "Status": "Skipped (Low Confidence)",
+      "Columns Mapped": 2,
+      "Mapping": null,
+      "Date Col": "DATE",
+      "Lang Col": "MISSING",
+      "Mins Col": "MISSING",
+      "Cost Col": "CHARGE(+)"
+    }
+  ],
+  "standardizer": [
+    {
+      "File": "Healthpoint - Propio Transaction Download.xlsx",
+      "Sheet": "ag-grid",
+      "Input Rows": 227272,
+      "Extracted Records": 227272,
+      "Dropped Rows": 0,
+      "Status": "Success"
+    },
+    {
+      "File": "Healthpoint - Propio Transaction Download.xlsx",
+      "Sheet": "Pivot",
+      "Input Rows": 1277,
+      "Extracted Records": 13,
+      "Dropped Rows": 1264,
+      "Status": "Success"
+    },
+    {
+      "File": "Nuvance - Cyracom Utilization.xlsx",
+      "Sheet": "Raw Data OPI.VRI",
+      "Input Rows": 1588,
+      "Extracted Records": 1588,
+      "Dropped Rows": 0,
+      "Status": "Success"
+    },
+    {
+      "File": "Peak Vista - AMN Download.xls",
+      "Sheet": "Sheet0",
+      "Input Rows": 44888,
+      "Extracted Records": 44877,
+      "Dropped Rows": 11,
+      "Status": "Success"
+    },
+    {
+      "File": "VFC - Pacific Interpreters Invoice.xls",
+      "Sheet": "Call Detail",
+      "Input Rows": 632,
+      "Extracted Records": 622,
+      "Dropped Rows": 10,
+      "Status": "Success"
+    },
+    {
+      "File": "Wellspace - LanguageLine Invoice.XLS",
+      "Sheet": "Call Detail",
+      "Input Rows": 6327,
+      "Extracted Records": 6327,
+      "Dropped Rows": 0,
+      "Status": "Success"
+    },
+    {
+      "File": "Wellspace - LanguageLine Invoice.XLS",
+      "Sheet": "Call Detail Summary Report",
+      "Input Rows": 41,
+      "Extracted Records": 0,
+      "Dropped Rows": 41,
+      "Status": "Success"
+    },
+    {
+      "File": "Wellspace - LanguageLine Invoice.XLS",
+      "Sheet": "Insight",
+      "Input Rows": 45,
+      "Extracted Records": 34,
+      "Dropped Rows": 11,
+      "Status": "Success"
+    }
+  ]
+}

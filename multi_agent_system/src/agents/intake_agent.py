@@ -1,7 +1,9 @@
 
-import os 
+import os
+import hashlib
 import pandas as pd
-from typing import List, Dict, Tuple
+from typing import List, Dict, Any
+from core.memory_store import ensure_memory_dir, load_json, save_json
 
 class IntakeAgent:
     """
@@ -17,6 +19,14 @@ class IntakeAgent:
     def __init__(self, data_dir: str):
         self.data_dir = data_dir
         self.file_diagnostics = {}  # Store diagnostics for each file
+        mem_dir = ensure_memory_dir()
+        self._classify_path = mem_dir / "intake_classifications.json"
+        self._classify_cache = load_json(self._classify_path, {})
+        try:
+            from core.ai_client import AIClient
+            self.ai = AIClient()
+        except ImportError:
+            self.ai = None
 
     def scan_files(self) -> List[str]:
         """Returns list of valid absolute file paths."""
@@ -50,28 +60,40 @@ class IntakeAgent:
                         # Score this sheet for transaction data
                         sheet_score = self._score_sheet_for_transactions(preview)
                         header_row_idx = self._detect_header_row(preview)
+                        classification = self._classify_sheet(preview, filepath, sheet, sheet_score)
                         
                         sheet_scores.append({
                             'sheet': sheet,
                             'score': sheet_score,
-                            'header_row': header_row_idx
+                            'header_row': header_row_idx,
+                            'classification': classification
                         })
                         
                         diagnostics['sheets_analyzed'].append({
                             'sheet': sheet,
                             'score': sheet_score,
-                            'header_row': header_row_idx
+                            'header_row': header_row_idx,
+                            'classification': classification
                         })
                         
                     except Exception as e:
-                        pass
+                        diagnostics['sheets_analyzed'].append({
+                            'sheet': sheet,
+                            'score': None,
+                            'header_row': None,
+                            'error': str(e)
+                        })
+                        continue
                 
                 # Sort by score and pick the best sheet(s)
                 sheet_scores.sort(key=lambda x: x['score'], reverse=True)
                 
                 # Load sheets with score >= 3 (likely have transaction data)
                 for sheet_info in sheet_scores:
-                    if sheet_info['score'] >= 3 and sheet_info['header_row'] is not None:
+                    classification = sheet_info.get('classification', {})
+                    is_transaction = classification.get('type') == 'transaction' and classification.get('confidence', 0) >= 0.6
+                    strong_heuristic = sheet_info['score'] >= 3
+                    if (strong_heuristic or is_transaction) and sheet_info['header_row'] is not None:
                         sheet = sheet_info['sheet']
                         header_row_idx = sheet_info['header_row']
                         
@@ -158,6 +180,69 @@ class IntakeAgent:
                 best_idx = idx
                 
         return best_idx
+
+    def _classify_sheet(self, df_preview: pd.DataFrame, filepath: str, sheet_name: str, score: int) -> Dict[str, Any]:
+        """
+        Classify a sheet as transaction/invoice/summary/unknown.
+        Uses heuristics first, then AI when ambiguous. Caches results by preview signature.
+        """
+        signature = self._preview_signature(df_preview, filepath, sheet_name)
+        cached = self._classify_cache.get(signature)
+        if cached:
+            return cached
+
+        # Heuristic decision
+        if score >= 3:
+            result = {"type": "transaction", "confidence": 0.7, "source": "heuristic"}
+            self._cache_classification(signature, result)
+            return result
+        if score <= 0:
+            result = {"type": "summary", "confidence": 0.6, "source": "heuristic"}
+            self._cache_classification(signature, result)
+            return result
+
+        # AI fallback for ambiguous scores
+        if self.ai and self.ai.enabled:
+            sample_rows = df_preview.fillna("").astype(str).values.tolist()
+            sample_rows = sample_rows[:12]
+            system_prompt = (
+                "You are an intake classifier for language services spreadsheets. "
+                "Classify the sheet type based on the preview."
+            )
+            user_prompt = (
+                f"File: {os.path.basename(filepath)}\n"
+                f"Sheet: {sheet_name}\n"
+                f"Heuristic score: {score}\n"
+                f"Preview rows (raw, header not detected): {sample_rows}\n\n"
+                "Return JSON: {\"type\": \"transaction|invoice|summary|unknown\", \"confidence\": 0-1, \"rationale\": \"...\"}"
+            )
+            ai_result = self.ai.complete_json(system_prompt, user_prompt)
+            if isinstance(ai_result, dict):
+                ctype = str(ai_result.get("type", "unknown")).strip().lower()
+                if ctype not in {"transaction", "invoice", "summary", "unknown"}:
+                    ctype = "unknown"
+                try:
+                    conf = float(ai_result.get("confidence", 0))
+                except Exception:
+                    conf = 0.0
+                result = {"type": ctype, "confidence": conf, "source": "ai", "rationale": ai_result.get("rationale")}
+                self._cache_classification(signature, result)
+                return result
+
+        result = {"type": "unknown", "confidence": 0.0, "source": "heuristic"}
+        self._cache_classification(signature, result)
+        return result
+
+    def _preview_signature(self, df_preview: pd.DataFrame, filepath: str, sheet_name: str) -> str:
+        # Hash a small, deterministic slice of the preview for caching
+        flat = df_preview.fillna("").astype(str).values.flatten().tolist()
+        joined = "|".join(flat[:200])
+        payload = f"{os.path.basename(filepath)}::{sheet_name}::{joined}"
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+    def _cache_classification(self, signature: str, result: Dict[str, Any]) -> None:
+        self._classify_cache[signature] = result
+        save_json(self._classify_path, self._classify_cache)
     
     def get_file_compatibility_report(self) -> str:
         """Generate a report of file compatibility based on diagnostics."""
@@ -175,6 +260,8 @@ class IntakeAgent:
                 report.append(f"  Best sheet: {diag['best_sheet']}")
                 for s in diag['sheets_analyzed']:
                     status = "[OK]" if s['score'] >= 3 else "[SKIP]"
-                    report.append(f"    {status} '{s['sheet']}': score={s['score']}, header_row={s['header_row']}")
+                    ctype = s.get('classification', {}).get('type', 'unknown')
+                    csrc = s.get('classification', {}).get('source', 'n/a')
+                    report.append(f"    {status} '{s['sheet']}': score={s['score']}, header_row={s['header_row']}, type={ctype} ({csrc})")
                     
         return "\n".join(report)

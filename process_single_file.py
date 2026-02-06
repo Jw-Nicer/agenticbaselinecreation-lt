@@ -51,14 +51,33 @@ def process_single_file(file_path):
         
         # Schema detection
         cols = list(df.columns)
-        mapping = schema_agent.infer_mapping(cols)
-        confidence = schema_agent.validate_mapping(mapping)
+        mapping = schema_agent.infer_mapping(
+            cols,
+            df.iloc[0] if len(df) > 0 else None,
+            vendor=vendor,
+            df=df
+        )
+        conf = schema_agent.assess_mapping(df, mapping)
+        confidence = conf["final_confidence"]
+        source = schema_agent.get_last_source()
+        ai_reason = schema_agent.get_last_ai_reasoning()
+
+        print(f"    Confidence: {confidence:.1%} (field {conf['field_confidence']:.0%}, data {conf['data_confidence']:.0%}, source {source})")
+        if ai_reason:
+            print(f"    AI reasoning: {ai_reason}")
         
-        print(f"    Confidence: {confidence:.1%}")
-        
-        if confidence < 0.5:
+        min_final = schema_agent.min_final_confidence
+        if confidence < min_final:
             print(f"    ⚠️ Skipped (low confidence)")
             continue
+        
+        schema_agent.confirm_mapping(
+            source_columns=cols,
+            mapping=mapping,
+            vendor=vendor,
+            data_confidence=conf["data_confidence"],
+            field_confidence=conf["field_confidence"]
+        )
         
         # Standardize
         new_records = standardizer.process_dataframe(df, mapping, file_path, vendor)

@@ -6,8 +6,15 @@ class AnalystAgent:
     """
     Performs 'Mix Analysis' and Variance Decomposition.
     Explains the 'Why' behind spend changes between months.
-    Delivers v7/v8 of the baseline factory.
+    Uses Generative AI to narrate the findings.
     """
+    
+    def __init__(self):
+        try:
+            from core.ai_client import AIClient
+            self.ai = AIClient()
+        except ImportError:
+            self.ai = None
 
     def analyze_variance(self, baseline_df: pd.DataFrame) -> Dict[str, Any]:
         """
@@ -74,8 +81,27 @@ class AnalystAgent:
                 "top_movers": self._get_top_movers(merged)
             }
             analysis_report[f"{prior_m} -> {curr_m}"] = month_stats
+            
+            # Add AI Commentary if enabled
+            if self.ai and self.ai.enabled:
+                month_stats["ai_commentary"] = self._generate_commentary(month_stats)
 
         return analysis_report
+    
+    def _generate_commentary(self, stats: Dict[str, Any]) -> str:
+        """Asks AI to explain the variance."""
+        prompt = f"""
+        Analyze this financial variance data for language services:
+        - Period: {stats['prior_month']} to {stats['current_month']}
+        - Total Variance: ${stats['total_variance']:,.2f}
+        - Volume Impact: ${stats['volume_impact']:,.2f}
+        - Price Impact: ${stats['price_impact']:,.2f}
+        - Mix Impact: ${stats['mix_impact']:,.2f}
+        - Top Movers: {stats['top_movers']}
+        
+        Write a 2-sentence executive summary explaining why spend changed. Focus on the biggest driver.
+        """
+        return self.ai.complete_text("You are a Financial Analyst.", prompt) or "AI Analysis failed."
 
     def _get_top_movers(self, merged_df: pd.DataFrame) -> List[Dict]:
         """Identifies the biggest drivers of variance in the period."""
@@ -94,7 +120,7 @@ class AnalystAgent:
 
     def print_summary(self, analysis_results: Dict[str, Any]):
         """Prints a human-readable insight report."""
-        print("\n=== ANALYST AGENT: VARIANCE DECOMPOSITION (v7/v8) ===")
+        print("\n=== ANALYST AGENT: VARIANCE DECOMPOSITION (AI-Enhanced) ===")
         
         for period, data in analysis_results.items():
             if "status" in data: 
@@ -103,20 +129,14 @@ class AnalystAgent:
             
             print(f"\nPeriod Comparison: {period}")
             print(f"  Total Spend Change: ${data['total_variance']:,.2f}")
+            
+            if "ai_commentary" in data:
+                print(f"\n  AI INSIGHT: {data['ai_commentary']}\n")
+            
             print(f"  -------------------------------------------")
             print(f"  1. Volume Effect: ${data['volume_impact']:>12,.2f}  (More/Less usage)")
             print(f"  2. Price Effect:  ${data['price_impact']:>12,.2f}  (Rate changes)")
             print(f"  3. Mix/Other:     ${data['mix_impact']:>12,.2f}  (Shifts in Language/Modality)")
-            
-            # Determine dominant factor
-            impacts = [
-                ("Volume", abs(data['volume_impact'])), 
-                ("Price", abs(data['price_impact'])), 
-                ("Mix", abs(data['mix_impact']))
-            ]
-            dominant = max(impacts, key=lambda x: x[1])[0]
-            
-            print(f"\n  INSIGHT: Spend change is primarily driven by {dominant} impact.")
             
             print(f"\n  Top Contributors to Change:")
             for m in data["top_movers"]:
