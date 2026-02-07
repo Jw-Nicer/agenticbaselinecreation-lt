@@ -71,10 +71,10 @@ Shows mapping confidence and column matches:
 Shows number of valid records extracted per sheet.
 
 #### 4. Rate Card Agent
-Shows cost imputation statistics:
+Shows cost validation statistics:
 - Total records processed
-- Number of records with imputed costs
-- Total dollar amount imputed
+- Number of records with source costs
+- Number of records flagged with missing costs
 
 #### 5. Modality Agent
 Shows distribution across OPI/VRI/OnSite/Translation.
@@ -103,14 +103,14 @@ Shows savings opportunities:
 
 ---
 
-## 🔧 Customizing the Rate Card
+## 🔧 Managing Verified Contract Rates
 
 ### Step 1: Export Current Rates
 ```bash
 python export_rate_card.py
 ```
 
-This creates `rate_card_current.csv` with all rates currently in the system.
+This creates `rate_card_current.csv` with all verified rates currently in the system.
 
 ### Step 2: Edit the Rate Card
 Open `rate_card_current.csv` in Excel and update rates:
@@ -171,8 +171,8 @@ simulator = SimulatorAgent(
 ### Issue: "UnicodeEncodeError"
 **Solution:** This is a Windows terminal encoding issue. The pipeline will still complete successfully. Check `baseline_v1_output.csv` for results.
 
-### Issue: "Missing rates for imputation"
-**Solution:** Some vendor/modality/language combinations don't have rates in the rate card. Update `rate_card_agent.py` with actual contract rates.
+### Issue: "Records flagged as missing cost"
+**Solution:** Some source files do not include usable charge columns for specific rows/vendors. Update source extracts or provide verified contract rates for analysis workflows.
 
 ---
 

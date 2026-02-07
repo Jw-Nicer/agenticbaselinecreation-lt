@@ -65,12 +65,15 @@ class SimulatorAgent:
 
         vri_total_cost = vri_records["Cost"].sum()
         vri_minutes = vri_records["Minutes"].sum()
+        if vri_minutes <= 0:
+            return {"name": "VRI Shift", "description": "VRI records found but total minutes are zero.", "annual_impact": 0.0, "status": "Invalid VRI minutes"}
         current_vri_cpm = vri_total_cost / vri_minutes
 
         # Calculate OPI average from the data as the landing rate
         opi_records = df[df["Modality"] == "OPI"]
-        if not opi_records.empty:
-            opi_cpm = opi_records["Cost"].sum() / opi_records["Minutes"].sum()
+        opi_minutes = opi_records["Minutes"].sum()
+        if not opi_records.empty and opi_minutes > 0:
+            opi_cpm = opi_records["Cost"].sum() / opi_minutes
         else:
             opi_cpm = self.target_opi_rate
         

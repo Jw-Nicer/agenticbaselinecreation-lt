@@ -39,8 +39,18 @@ class AggregatorAgent:
         }).reset_index()
         
         # Calculate derived metrics
-        baseline["CPM"] = baseline["Cost"] / baseline["Minutes"]
-        baseline["Avg_Call_Length"] = baseline["Minutes"] / baseline["Calls"]
+        baseline["CPM"] = (
+            baseline["Cost"]
+            .div(baseline["Minutes"])
+            .replace([float("inf"), -float("inf")], 0.0)
+            .fillna(0.0)
+        )
+        baseline["Avg_Call_Length"] = (
+            baseline["Minutes"]
+            .div(baseline["Calls"])
+            .replace([float("inf"), -float("inf")], 0.0)
+            .fillna(0.0)
+        )
         
         # Sort
         baseline = baseline.sort_values(["Month", "Cost"], ascending=[True, False])

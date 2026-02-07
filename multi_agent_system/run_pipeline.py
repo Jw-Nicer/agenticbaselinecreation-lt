@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 import json
+import subprocess
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -50,7 +51,7 @@ def main():
     # =========================================================================
     # AGENT 1: INTAKE
     # =========================================================================
-    print("\n[1/7] INTAKE AGENT - Scanning for files...")
+    print("\n[1/9] INTAKE AGENT - Scanning for files...")
     logger.log("Intake Agent", "Started scanning", {"directory": str(data_dir)})
     
     intake = IntakeAgent(str(data_dir))
@@ -80,8 +81,8 @@ def main():
     # =========================================================================
     # AGENT 2 & 3: SCHEMA + STANDARDIZER (per file)
     # =========================================================================
-    print("\n[2/7] SCHEMA AGENT - Mapping columns...")
-    print("[3/7] STANDARDIZER AGENT - Extracting records...")
+    print("\n[2/9] SCHEMA AGENT - Mapping columns...")
+    print("[3/9] STANDARDIZER AGENT - Extracting records...")
     
     for filepath in files:
         filename = os.path.basename(filepath)
@@ -89,8 +90,9 @@ def main():
         
         logger.log("Schema Agent", f"Processing file", {"file": filename, "vendor": vendor})
         
+        recon_sheets = intake.load_all_sheets_for_reconciliation(filepath)
+        reconciler.extract_totals_from_sheets(recon_sheets, vendor)
         sheets = intake.load_clean_sheet(filepath)
-        reconciler.extract_totals_from_sheets(sheets, vendor)
         
         for sheet_name, df in sheets.items():
             cols = list(df.columns)
@@ -180,7 +182,7 @@ def main():
     # =========================================================================
     # AGENT 4: RATE CARD
     # =========================================================================
-    print(f"\n[4/7] RATE CARD AGENT - Validating costs...")
+    print(f"\n[4/9] RATE CARD AGENT - Validating costs...")
     logger.log("Rate Card Agent", "Started validation", {"input_records": len(records)})
     
     rate_card = RateCardAgent()
@@ -414,6 +416,41 @@ def main():
     with open(audit_path, 'w') as f:
         json.dump(audit_data, f, indent=2)
     print(f"  Agent audit logs saved to: audit_logs.json")
+
+    # Universal validation gate
+    validator_script = base_dir / "validate_baseline.py"
+    if validator_script.exists():
+        validation_report = base_dir / "baseline_validation_report.json"
+        strict_validation = os.getenv("VALIDATION_STRICT", "").strip().lower() in {"1", "true", "yes", "on"}
+        validation_cmd = [
+            sys.executable,
+            str(validator_script),
+            "--baseline", str(v1_path),
+            "--transactions", str(trans_path),
+            "--output", str(validation_report)
+        ]
+        if strict_validation:
+            validation_cmd.append("--strict")
+        print("  Running universal baseline validation...")
+        validation_proc = subprocess.run(validation_cmd, capture_output=True, text=True)
+        if validation_proc.stdout:
+            print(f"    {validation_proc.stdout.strip()}")
+        if validation_proc.returncode != 0:
+            if validation_proc.stderr:
+                print(f"    Validation error: {validation_proc.stderr.strip()}")
+            raise SystemExit("Pipeline failed validation check.")
+        else:
+            try:
+                with open(validation_report, "r", encoding="utf-8") as f:
+                    validation_data = json.load(f)
+                if validation_data.get("status") != "PASS":
+                    failed_checks = validation_data.get("summary", {}).get("failed_checks", [])
+                    print(f"    Validation failed checks: {failed_checks}")
+                    raise SystemExit("Pipeline failed validation check.")
+            except Exception as e:
+                raise SystemExit(f"Pipeline could not confirm validation status: {e}")
+    else:
+        print("  Validation script not found; skipping post-run validation.")
     
     print("\n" + "=" * 60)
     print("PIPELINE COMPLETE")

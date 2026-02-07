@@ -1,6 +1,7 @@
 
 import os
 import hashlib
+from contextlib import contextmanager
 import pandas as pd
 from typing import List, Dict, Any
 from core.memory_store import ensure_memory_dir, load_json, save_json
@@ -37,6 +38,20 @@ class IntakeAgent:
                     files_found.append(os.path.join(root, file))
         return files_found
 
+    @contextmanager
+    def _open_excel_file(self, filepath: str):
+        """
+        Open Excel files with engine settings that suppress noisy legacy .xls logs.
+        """
+        ext = os.path.splitext(filepath)[1].lower()
+        if ext == ".xls":
+            with open(os.devnull, "w", encoding="utf-8") as sink:
+                with pd.ExcelFile(filepath, engine="xlrd", engine_kwargs={"logfile": sink}) as xls:
+                    yield xls
+            return
+        with pd.ExcelFile(filepath) as xls:
+            yield xls
+
     def load_clean_sheet(self, filepath: str) -> Dict[str, pd.DataFrame]:
         """
         Intelligently loads an Excel file. 
@@ -47,11 +62,43 @@ class IntakeAgent:
         """
         dfs = {}
         diagnostics = {'file': os.path.basename(filepath), 'sheets_analyzed': [], 'best_sheet': None}
+        ext = os.path.splitext(filepath)[1].lower()
+
+        # CSV path: treat as a single logical sheet
+        if ext == ".csv":
+            try:
+                preview = pd.read_csv(filepath, nrows=100, header=None)
+                sheet_name = "csv"
+                sheet_score = self._score_sheet_for_transactions(preview)
+                header_row_idx = self._detect_header_row(preview)
+                classification = self._classify_sheet(preview, filepath, sheet_name, sheet_score)
+
+                diagnostics['sheets_analyzed'].append({
+                    'sheet': sheet_name,
+                    'score': sheet_score,
+                    'header_row': header_row_idx,
+                    'classification': classification
+                })
+
+                is_transaction = classification.get('type') == 'transaction' and classification.get('confidence', 0) >= 0.6
+                strong_heuristic = sheet_score >= 3
+                if (strong_heuristic or is_transaction) and header_row_idx is not None:
+                    full_df = pd.read_csv(filepath, header=header_row_idx)
+                    full_df = full_df.dropna(how='all')
+                    if len(full_df) >= 5:
+                        dfs[sheet_name] = full_df
+                        diagnostics['best_sheet'] = sheet_name
+            except Exception as e:
+                diagnostics['error'] = str(e)
+                print(f"Error loading {filepath}: {e}")
+
+            self.file_diagnostics[filepath] = diagnostics
+            return dfs
         
         try:
-            with pd.ExcelFile(filepath) as xls:
+            with self._open_excel_file(filepath) as xls:
                 sheet_scores = []
-                
+                    
                 for sheet in xls.sheet_names:
                     try:
                         # Read first ~100 rows to find the header
@@ -112,6 +159,30 @@ class IntakeAgent:
         
         self.file_diagnostics[filepath] = diagnostics
         return dfs
+
+    def load_all_sheets_for_reconciliation(self, filepath: str) -> Dict[str, pd.DataFrame]:
+        """
+        Load broad/raw sheet data for reconciliation scans.
+        Unlike load_clean_sheet(), this does not filter for transaction-only sheets.
+        """
+        sheets = {}
+        ext = os.path.splitext(filepath)[1].lower()
+
+        try:
+            if ext == ".csv":
+                sheets["csv_raw"] = pd.read_csv(filepath, header=None)
+                return sheets
+
+            with self._open_excel_file(filepath) as xls:
+                for sheet in xls.sheet_names:
+                    try:
+                        sheets[sheet] = pd.read_excel(xls, sheet_name=sheet, header=None)
+                    except Exception:
+                        continue
+        except Exception:
+            return {}
+
+        return sheets
 
     def _score_sheet_for_transactions(self, df_preview: pd.DataFrame) -> int:
         """

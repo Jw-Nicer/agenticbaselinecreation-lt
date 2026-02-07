@@ -2,6 +2,7 @@
 import pandas as pd
 import re
 import hashlib
+import warnings
 from typing import Dict, List, Any, Optional, Tuple
 from core.canonical_schema import CANONICAL_FIELDS
 from core.memory_store import ensure_memory_dir, load_json, save_json
@@ -80,6 +81,18 @@ class SchemaAgent:
         if not isinstance(header, str):
             return str(header)
         return header.strip().lower().replace('\n', ' ').replace('.', '')
+
+    def _safe_to_datetime(self, series: pd.Series) -> pd.Series:
+        """
+        Parse dates without noisy inference warnings.
+        Falls back to default parsing if format='mixed' is unavailable.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            try:
+                return pd.to_datetime(series, errors="coerce", format="mixed")
+            except TypeError:
+                return pd.to_datetime(series, errors="coerce")
 
     def _build_ai_prompt(self, source_columns: List[str], sample_row: Optional[pd.Series], vendor: Optional[str]) -> Tuple[str, str]:
         """Build enhanced AI prompt with few-shot examples and vendor context."""
@@ -390,7 +403,7 @@ Rules:
                 continue
 
             if field == "date":
-                parsed = pd.to_datetime(series, errors="coerce")
+                parsed = self._safe_to_datetime(series)
                 parse_rate = parsed.notna().sum() / len(series)
                 if parse_rate < min_date_parse:
                     pruned.pop(field, None)
@@ -599,7 +612,7 @@ Rules:
         if date_col and date_col in sample.columns:
             series = sample[date_col].dropna()
             if len(series) > 0:
-                parsed = pd.to_datetime(series, errors='coerce')
+                parsed = self._safe_to_datetime(series)
                 parse_rate = parsed.notna().sum() / len(series)
                 results["date_parse_rate"] = float(parse_rate)
 
@@ -658,7 +671,7 @@ Rules:
             series = sample[date_col]
             non_null = series.notna().sum()
             if non_null > 0:
-                parsed = pd.to_datetime(series, errors="coerce")
+                parsed = self._safe_to_datetime(series)
                 ratios.append(parsed.notna().sum() / non_null)
 
         # Language non-empty ratio
@@ -677,7 +690,12 @@ Rules:
             series = sample[mins_col]
             non_null = series.notna().sum()
             if non_null > 0:
-                numeric = pd.to_numeric(series, errors="coerce")
+                cleaned = (
+                    series.astype(str)
+                    .str.replace(',', '', regex=False)
+                    .str.replace(r'\s*min(utes?)?\s*$', '', regex=True, flags=re.IGNORECASE)
+                )
+                numeric = pd.to_numeric(cleaned, errors="coerce")
                 valid = numeric[(numeric.notna()) & (numeric >= 0)]
                 ratios.append(len(valid) / non_null)
 
@@ -687,7 +705,8 @@ Rules:
             series = sample[cost_col]
             non_null = series.notna().sum()
             if non_null > 0:
-                numeric = pd.to_numeric(series, errors="coerce")
+                cleaned = series.astype(str).str.replace(r'[\$,]', '', regex=True)
+                numeric = pd.to_numeric(cleaned, errors="coerce")
                 valid = numeric[numeric.notna()]
                 ratios.append(len(valid) / non_null)
 

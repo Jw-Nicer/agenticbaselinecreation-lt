@@ -106,6 +106,11 @@ class QAgent:
                 issues.append("Missing Date")
                 status = "QUARANTINED"
 
+            # Missing cost with non-zero utilization cannot be used in accurate baseline spend math.
+            if rec.minutes_billed > 0 and rec.total_charge <= 0:
+                issues.append("Missing Cost")
+                status = "QUARANTINED"
+
             # Update record metadata
             if issues:
                 # Record issues in stats
@@ -119,9 +124,9 @@ class QAgent:
                 
                 if status == "QUARANTINED":
                     qa_stats["critical_errors_quarantined"] += 1
-                    # Note: We still keep them in the list for now but labeled
-                else:
-                    qa_stats["outliers_flagged"] += 1
+                    # Accuracy-first behavior: quarantine records are excluded from baseline math.
+                    continue
+                qa_stats["outliers_flagged"] += 1
 
             clean_records.append(rec)
 
