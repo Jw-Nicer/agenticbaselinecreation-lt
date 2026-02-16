@@ -9,8 +9,11 @@ venv/
 data_files/
 temp_uploads/
 output/
+out/
 baseline_v1_output.csv
 baseline_transactions.csv
+baseline_validation_report.json
+audit_logs.json
 BASELINE_REPORT.txt
 pipeline_log.txt
 *.zip

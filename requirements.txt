@@ -1,0 +1,10 @@
+pandas
+python-dotenv
+openai
+openpyxl
+xlrd
+pydantic
+pytest
+scipy
+numpy
+pyyaml

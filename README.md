@@ -34,15 +34,38 @@ This system uses a team of **9 Specialized AI Agents** to automate the entire da
 ---
 
 ## 🛠️ How to Run
+
+### Quickstart (Agent-Enabled)
 ```bash
-# Run the full pipeline
-python multi_agent_system/run_pipeline.py
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the full pipeline on sample data
+./baseline run --input tests/fixtures --client test_client
 ```
 
-The system will output:
-- **`baseline_v1_output.csv`**: The clean, standardized database.
-- **`pipeline_log.txt`**: Detailed processing logs.
-- **Console Report**: Real-time insights from all 9 agents.
+### CLI Usage
+The `./baseline` CLI provides several subcommands:
+- `run`: Run the full end-to-end pipeline.
+- `ingest`: Scan and classify input files.
+- `extract`: Map schemas and standardize data.
+- `validate`: Apply QA rules and validate against rate cards.
+- `report`: Generate final baseline reports.
+
+**Common Options:**
+- `--input`, `-i`: Path to the directory containing vendor files.
+- `--client`, `-c`: Client name for output organization.
+
+### Outputs
+Pipeline results are written to a structured directory:
+`out/<client>/<timestamp>/`
+
+Each run produces:
+- `baseline_v1_output.csv`: Aggregated baseline spend table.
+- `baseline_transactions.csv`: Cleaned transaction-level data.
+- `manifest.json`: Machine-readable run summary.
+- `AGENT_ACTIVITY_LOG.md`: Human-readable processing log.
+- `audit_logs.json`: Detailed agent mapping and processing logs.
 
 ## 🖥️ UI Dashboard
 ```bash
@@ -55,14 +78,22 @@ Note: `dashboard_legacy.py` is legacy and will be removed in a future cleanup.
 ## 📁 Repository Structure
 ```
 .
+├── baseline                    # Primary CLI entrypoint
 ├── multi_agent_system/         # Source code for agents
-│   ├── src/agents/             # Individual agent logic
-│   └── run_pipeline.py         # Main orchestrator script
-├── data_files/                 # Input data directory
-├── dashboard_enhanced.py        # Primary Streamlit UI
-├── dashboard_legacy.py          # Legacy UI (deprecated)
-├── baseline_v1_output.csv      # Output database
-└── rate_card_current.csv       # Configuration for rates
+│   ├── src/                    # Core logic and agent definitions
+│   └── run_pipeline.py         # Pipeline orchestrator
+├── out/                        # Structured output directory
+├── tests/                      # Unit and E2E tests
+│   └── fixtures/               # Golden dataset
+├── docs/                       # Reports and documentation
+├── requirements.txt            # Dependency manifest
+└── rate_card_current.csv       # Hierarchical rate card config
+```
+
+## 🧪 Testing
+```bash
+# Run all tests
+pytest tests/
 ```
 
 *Built by Antigravity AI - February 2026*
