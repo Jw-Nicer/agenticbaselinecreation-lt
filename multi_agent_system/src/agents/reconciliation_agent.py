@@ -64,7 +64,9 @@ class ReconciliationAgent:
         results = {
             "overall_status": "MATCH",
             "vendors": {},
-            "total_variance": 0.0
+            "total_variance": 0.0,
+            "vendors_missing_invoice": 0,
+            "vendors_with_discrepancy": 0
         }
 
         for vendor, stats in vendor_data.items():
@@ -78,9 +80,12 @@ class ReconciliationAgent:
             status = "MATCH"
             if billed == 0:
                 status = "NO_INVOICE_FOUND"
+                results["overall_status"] = "ALERT"
+                results["vendors_missing_invoice"] += 1
             elif abs(var_pct) > 2.0: # 2% variance threshold
                 status = "DISCREPANCY"
                 results["overall_status"] = "ALERT"
+                results["vendors_with_discrepancy"] += 1
 
             results["vendors"][vendor] = {
                 "calculated": round(calculated, 2),

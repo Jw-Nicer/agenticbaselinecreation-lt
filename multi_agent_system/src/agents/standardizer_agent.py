@@ -5,6 +5,7 @@ import re
 from typing import List, Dict, Any
 from core.canonical_schema import CanonicalRecord
 
+
 class StandardizerAgent:
     """
     Takes a raw DataFrame + a Schema Mapping and produces a list of CanonicalRecords.
@@ -12,58 +13,80 @@ class StandardizerAgent:
     """
 
     def process_dataframe(self, df: pd.DataFrame, mapping: Dict[str, str], source_file: str, vendor: str) -> List[CanonicalRecord]:
-        records = []
-        
         # Check required columns
         req_cols = ["language", "date"] # Minimal Requirement
         for rc in req_cols:
             if rc not in mapping:
                 # Can't process this sheet
                 return []
-
-        for index, row in df.iterrows():
+        
+        # Make a working copy to avoid modifying original
+        work_df = df.copy()
+        
+        # VECTORIZED OPERATIONS: Process all rows at once
+        
+        # 1. Parse Dates (vectorized)
+        date_col = mapping.get("date")
+        work_df['_clean_date'] = work_df[date_col].apply(self._parse_date)
+        
+        # 2. Parse Language (vectorized)
+        lang_col = mapping.get("language")
+        work_df['_clean_language'] = work_df[lang_col].astype(str).str.strip()
+        
+        # 3. Parse Minutes (vectorized)
+        mins_col = mapping.get("minutes")
+        if mins_col:
+            work_df['_clean_minutes'] = work_df[mins_col].apply(self._parse_float)
+        else:
+            work_df['_clean_minutes'] = 0.0
+            
+        # 4. Parse Charge (vectorized)
+        charge_col = mapping.get("charge") or mapping.get("cost")
+        if charge_col:
+            work_df['_clean_charge'] = work_df[charge_col].apply(self._parse_float)
+        else:
+            work_df['_clean_charge'] = 0.0
+            
+        # 5. Parse Modality (vectorized)
+        if "modality" in mapping:
+            modality_col = mapping.get("modality")
+            work_df['_clean_modality'] = work_df[modality_col].astype(str).str.strip()
+        else:
+            work_df['_clean_modality'] = "UNKNOWN"
+        
+        # 6. Calculate rate per minute (vectorized)
+        work_df['_rate_per_minute'] = work_df.apply(
+            lambda r: (r['_clean_charge'] / r['_clean_minutes']) if r['_clean_minutes'] > 0 else 0.0,
+            axis=1
+        )
+        
+        # FILTER: Remove rows with invalid data
+        valid_mask = (
+            work_df['_clean_date'].notna() &  # Must have valid date
+            (work_df['_clean_language'] != '') &  # Must have language
+            (work_df['_clean_language'].str.lower() != 'nan')  # Language not "nan"
+        )
+        
+        valid_df = work_df[valid_mask].copy()
+        
+        # BUILD RECORDS: Convert filtered dataframe to CanonicalRecords
+        records = []
+        for _, row in valid_df.iterrows():
             try:
-                # 1. Parse Date
-                raw_date = row.get(mapping.get("date"))
-                clean_date = self._parse_date(raw_date)
-                
-                # If no valid date, it might be a summary line or garbage -> skip
-                if not clean_date:
-                    continue
-
-                # 2. Parse Language
-                lang = str(row.get(mapping.get("language"), "Unknown")).strip()
-                if not lang or lang.lower() == 'nan':
-                     continue
-
-                # 3. Parse Metrics
-                mins = self._parse_float(row.get(mapping.get("minutes"), 0))
-                charge_col = mapping.get("charge") or mapping.get("cost")
-                charge = self._parse_float(row.get(charge_col, 0))
-                
-                # 4. Parse Modality
-                # If mapped, use it. If not, flag as UNKNOWN (data faithful)
-                modality = "UNKNOWN"
-                if "modality" in mapping:
-                    modality = str(row.get(mapping.get("modality"), "OPI")).strip()
-                
-                # Create Record
                 rec = CanonicalRecord(
                     source_file=source_file,
                     vendor=vendor,
-                    date=clean_date,
-                    language=lang,
-                    modality=modality,
-                    minutes_billed=mins,
-                    total_charge=charge,
-                    rate_per_minute= (charge / mins) if mins > 0 else 0.0,
+                    date=row['_clean_date'],
+                    language=row['_clean_language'],
+                    modality=row['_clean_modality'],
+                    minutes_billed=row['_clean_minutes'],
+                    total_charge=row['_clean_charge'],
+                    rate_per_minute=row['_rate_per_minute'],
                     raw_columns=row.to_dict()
                 )
                 records.append(rec)
-                
-            except Exception as e:
-                # Log specific row errors but don't crash whole file
-                # print(f"Row error: {e}")
+            except Exception:
+                # Skip malformed rows
                 pass
                 
         return records

@@ -7,20 +7,22 @@ import json
 import subprocess
 import pandas as pd
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 # Load environment variables
 load_dotenv()
 
 # Ensure src is in path
-BASE_DIR = Path(__file__).resolve().parents[1]
-SRC_PATH = Path(__file__).resolve().parent / "src"
+# Determine paths
+current_dir = Path(__file__).resolve().parent
+PROJECT_ROOT = current_dir.parent
+SRC_PATH = current_dir / "src"
+
+# Add src to pythonpath
 if SRC_PATH.exists():
     sys.path.append(str(SRC_PATH))
-else:
-    alt_src = BASE_DIR / "src"
-    if alt_src.exists():
-        sys.path.append(str(alt_src))
 
+# Import agents after path setup
 from agents.intake_agent import IntakeAgent
 from agents.schema_agent import SchemaAgent
 from agents.standardizer_agent import StandardizerAgent
@@ -33,6 +35,9 @@ from agents.simulator_agent import SimulatorAgent
 from agents.aggregator_agent import AggregatorAgent
 from core.activity_logger import reset_logger, get_logger
 from core.ai_client import AIClient
+
+# Update base_dir to project root for data access
+BASE_DIR = PROJECT_ROOT
 
 def main():
     base_dir = BASE_DIR
@@ -48,7 +53,11 @@ def main():
 
     # Initialize activity logger
     logger = reset_logger()
-
+    
+    # Ensure output directory exists in project root or multi_agent_system?
+    # Let's write output to project root for visibility
+    output_dir = base_dir
+    
     ai_status = "ENABLED" if AIClient().enabled else "DISABLED"
     print(f"AI MODE: {ai_status}")
     logger.log("Orchestrator", "AI mode", {"status": ai_status})
@@ -93,7 +102,7 @@ def main():
     print("\n[2/9] SCHEMA AGENT - Mapping columns...")
     print("[3/9] STANDARDIZER AGENT - Extracting records...")
     
-    for filepath in files:
+    for filepath in tqdm(files, desc="Processing files", unit="file"):
         filename = os.path.basename(filepath)
         vendor = filename.split(" ")[0].split("-")[0].replace("_", "")
         
@@ -327,9 +336,15 @@ def main():
     aggregator = AggregatorAgent()
     baseline_table = aggregator.create_baseline(records)
     
-    total_cost = baseline_table['Cost'].sum()
-    total_minutes = baseline_table['Minutes'].sum()
-    total_calls = baseline_table['Calls'].sum()
+    # Handle empty baseline
+    if baseline_table.empty:
+        total_cost = 0.0
+        total_minutes = 0.0
+        total_calls = 0
+    else:
+        total_cost = baseline_table['Cost'].sum()
+        total_minutes = baseline_table['Minutes'].sum()
+        total_calls = baseline_table['Calls'].sum()
     
     logger.log("Aggregator Agent", "Baseline created", {
         "rows": len(baseline_table),
@@ -464,9 +479,13 @@ def main():
     print(f"  Manifest saved to: {manifest_path}")
 
     # Universal validation gate
-    validator_script = base_dir / "validate_baseline.py"
+    validator_script = base_dir / "scripts" / "validate_baseline.py"
     if validator_script.exists():
-        validation_report = base_dir / "baseline_validation_report.json"
+        validation_report = base_dir / "reports" / "baseline_validation_report.json"
+        
+        # Ensure reports dir exists
+        validation_report.parent.mkdir(exist_ok=True)
+        
         strict_validation = os.getenv("VALIDATION_STRICT", "").strip().lower() in {"1", "true", "yes", "on"}
         validation_cmd = [
             sys.executable,

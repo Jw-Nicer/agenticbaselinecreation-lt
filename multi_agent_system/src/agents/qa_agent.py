@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 import datetime
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Optional
 from core.canonical_schema import CanonicalRecord
 
 class QAgent:
@@ -11,11 +11,33 @@ class QAgent:
     Delivers the "v4 QA" layer of the baseline.
     """
 
-    def __init__(self, rate_std_dev_threshold: float = 3.0, duration_max_minutes: float = 240.0):
-        self.rate_threshold = rate_std_dev_threshold
-        self.max_duration = duration_max_minutes
-        self.min_rate = 0.10  # Minimum reasonable CPM
-        self.max_rate = 5.00  # Maximum reasonable CPM (except for rare onsite/specialty)
+    def __init__(self, config_path: str = None):
+        if config_path is None:
+             # Default to standardized location
+             config_path = "config/agent_config.json"
+             
+        import json
+        import os
+        
+        # Default fallback values
+        self.rate_threshold = 3.0
+        self.max_duration = 240.0
+        self.min_rate = 0.10
+        self.max_rate = 5.00
+        
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    full_config = json.load(f)
+                    qa_config = full_config.get("QAgent", {})
+                    self.rate_threshold = qa_config.get("rate_std_dev_threshold", 3.0)
+                    self.max_duration = qa_config.get("duration_max_minutes", 240.0)
+                    self.min_rate = qa_config.get("min_rate_threshold", 0.10)
+                    self.max_rate = qa_config.get("max_rate_threshold", 5.00)
+            else:
+                print(f"Config file not found at {config_path}, using defaults")
+        except Exception as e:
+            print(f"Warning: Could not load QA config, using defaults. Error: {e}")
 
     def process_records(self, records: List[CanonicalRecord]) -> Tuple[List[CanonicalRecord], Dict[str, Any]]:
         """
@@ -72,8 +94,9 @@ class QAgent:
             status = "CLEAN"
 
             # --- CHECK 1: Duplicates ---
-            # Unique signature: vendor + date + language + modality + minutes + charge
-            dup_key = (rec.vendor, str(rec.date), rec.language.strip().lower(), rec.modality.strip().lower(), round(rec.minutes_billed, 2), round(rec.total_charge, 2))
+            # Unique signature includes source metadata to avoid false-positive collapses
+            # when distinct sessions happen to share the same business values.
+            dup_key = self._build_duplicate_key(rec)
             if dup_key in seen_keys:
                 qa_stats["duplicates_removed"] += 1
                 continue # Skip duplicates
@@ -140,3 +163,50 @@ class QAgent:
 
         qa_stats["total_records_output"] = len(clean_records)
         return clean_records, qa_stats
+
+    def _extract_row_identity(self, rec: CanonicalRecord) -> Optional[str]:
+        """
+        Return a source-row identifier when available (e.g., call/session/invoice id).
+        This lowers duplicate false positives for repeated same-day transactions.
+        """
+        raw = rec.raw_columns if isinstance(rec.raw_columns, dict) else {}
+        if not raw:
+            return None
+
+        id_hints = (
+            "call_id",
+            "session_id",
+            "encounter_id",
+            "interaction_id",
+            "invoice_line_id",
+            "line_id",
+            "record_id",
+            "id",
+        )
+
+        normalized = {str(k).strip().lower(): v for k, v in raw.items()}
+        for hint in id_hints:
+            if hint in normalized:
+                val = normalized[hint]
+                if val is not None:
+                    sval = str(val).strip()
+                    if sval and sval.lower() != "nan":
+                        return sval
+        return None
+
+    def _build_duplicate_key(self, rec: CanonicalRecord) -> Tuple[Any, ...]:
+        """
+        Build a conservative duplicate signature that incorporates source context.
+        """
+        return (
+            str(rec.source_file).strip().lower(),
+            str(rec.vendor).strip().lower(),
+            str(rec.date),
+            str(rec.language).strip().lower(),
+            str(rec.modality).strip().lower(),
+            round(float(rec.minutes_billed), 4),
+            round(float(rec.total_charge), 4),
+            str(rec.timestamp_start) if rec.timestamp_start else "",
+            str(rec.timestamp_end) if rec.timestamp_end else "",
+            self._extract_row_identity(rec),
+        )

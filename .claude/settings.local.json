@@ -5,7 +5,11 @@
       "Bash(streamlit run:*)",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(\".venv/Scripts/pip.exe\" install matplotlib)"
+      "Bash(\".venv/Scripts/pip.exe\" install matplotlib)",
+      "Bash(python -c:*)",
+      "Bash(where:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m playwright:*)"
     ]
   }
 }

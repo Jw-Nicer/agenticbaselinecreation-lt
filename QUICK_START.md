@@ -7,8 +7,10 @@ This guide will help you run the baseline factory on new data files.
 ## 📋 Prerequisites
 
 - Python 3.11+
-- Required packages: `pandas`, `openpyxl`, `xlrd`
-- Optional (for UI): `streamlit`, `plotly`
+- Required packages:
+  ```bash
+  pip install pandas openpyxl xlrd pytest tqdm streamlit altair
+  ```
 
 ---
 
@@ -27,12 +29,21 @@ Place your vendor Excel/CSV files in the `data_files/Language Services/` directo
 cd C:\Users\John\.gemini\antigravity\playground\multiagent-baseline-lt
 python multi_agent_system\run_pipeline.py
 ```
+*Tip: You will see a progress bar indicating the processing status.*
 
-### Step 3: Review the Output
+### Step 3: Run Tests (Optional)
+To ensure everything is working correctly, you can run the test suite:
+```bash
+python -m pytest tests/
+```
+
+### Step 4: Review the Output
 The pipeline will generate:
 - `baseline_v1_output.csv` - Your final baseline table
 - `pipeline_log.txt` - Detailed processing log
 - Console output with all agent reports
+
+---
 
 ## 🖥️ Optional: Run the Dashboard
 ```bash
@@ -55,52 +66,6 @@ Note: `dashboard_legacy.py` is legacy and will be removed in a future cleanup.
 - **CPM:** Cost per minute (Cost / Minutes)
 - **Avg_Call_Length:** Average call duration (Minutes / Calls)
 
-### Agent Reports in Console:
-
-#### 1. Intake Agent
-Shows files discovered and loaded.
-
-#### 2. Schema Agent
-Shows mapping confidence and column matches:
-- **1.00:** Perfect match (all critical columns found)
-- **0.75:** Good match (most columns found)
-- **0.50:** Partial match (some columns missing)
-- **0.00:** No match (skipped)
-
-#### 3. Standardizer Agent
-Shows number of valid records extracted per sheet.
-
-#### 4. Rate Card Agent
-Shows cost validation statistics:
-- Total records processed
-- Number of records with source costs
-- Number of records flagged with missing costs
-
-#### 5. Modality Agent
-Shows distribution across OPI/VRI/OnSite/Translation.
-
-#### 6. QA Agent
-Shows data quality metrics:
-- Duplicates removed
-- Quality issues flagged
-- Critical errors quarantined
-- Top issues detected
-
-#### 7. Reconciliation Agent
-Shows calculated vs. billed totals per vendor.
-
-#### 8. Analyst Agent
-Shows month-over-month variance analysis:
-- Total spend change
-- Volume effect (usage changes)
-- Price effect (rate changes)
-- Mix effect (service type shifts)
-
-#### 9. Simulator Agent
-Shows savings opportunities:
-- Rate standardization savings
-- Modality shift savings
-
 ---
 
 ## 🔧 Managing Verified Contract Rates
@@ -110,8 +75,6 @@ Shows savings opportunities:
 python export_rate_card.py
 ```
 
-This creates `rate_card_current.csv` with all verified rates currently in the system.
-
 ### Step 2: Edit the Rate Card
 Open `rate_card_current.csv` in Excel and update rates:
 
@@ -120,43 +83,10 @@ Open `rate_card_current.csv` in Excel and update rates:
 Vendor,Modality,Language,Rate
 Healthpoint,OPI,Spanish,0.75
 Nuvance,VRI,Spanish,0.95
-Peak,OPI,,0.70
-,OPI,Dari,0.80
 ```
-
-**Rules:**
-- Leave Vendor blank for industry averages
-- Leave Language blank for modality-only rates
-- More specific rates override general ones
 
 ### Step 3: Import Updated Rates
-Edit `multi_agent_system/src/agents/rate_card_agent.py`:
-
-```python
-def _load_default_rates(self):
-    # Option 1: Load from CSV
-    import pandas as pd
-    df = pd.read_csv("rate_card_current.csv")
-    rates = {}
-    for _, row in df.iterrows():
-        key = (row['Vendor'] or None, row['Modality'], row['Language'] or None)
-        rates[key] = row['Rate']
-    return rates
-```
-
----
-
-## 🎯 Adjusting Simulator Targets
-
-Edit `multi_agent_system/run_pipeline.py`:
-
-```python
-# Change target rates for simulations
-simulator = SimulatorAgent(
-    target_opi_rate=0.65,  # Target OPI rate
-    target_vri_rate=0.85   # Target VRI rate
-)
-```
+Edit `multi_agent_system/src/agents/rate_card_agent.py` to load this CSV.
 
 ---
 
@@ -171,62 +101,14 @@ simulator = SimulatorAgent(
 ### Issue: "UnicodeEncodeError"
 **Solution:** This is a Windows terminal encoding issue. The pipeline will still complete successfully. Check `baseline_v1_output.csv` for results.
 
-### Issue: "Records flagged as missing cost"
-**Solution:** Some source files do not include usable charge columns for specific rows/vendors. Update source extracts or provide verified contract rates for analysis workflows.
-
----
-
-## 📅 Monthly Baseline Updates
-
-### Recommended Workflow:
-
-1. **Week 1 of Month:** Collect vendor invoices/reports
-2. **Week 2:** Place files in `data_files/Language Services/`
-3. **Week 2:** Run pipeline: `python multi_agent_system\run_pipeline.py`
-4. **Week 2:** Review QA statistics in console output
-5. **Week 3:** Analyze variance report (Analyst Agent output)
-6. **Week 3:** Review savings opportunities (Simulator Agent output)
-7. **Week 4:** Share `EXECUTIVE_SUMMARY.md` with stakeholders
-
----
-
-## 🎓 Advanced Usage
-
-### Running on Specific Files Only
-Edit `run_pipeline.py`:
-
-```python
-# Only process files matching a pattern
-files = [f for f in files if "Healthpoint" in f]
-```
-
-### Changing QA Thresholds
-Edit the QA Agent initialization in `run_pipeline.py`:
-
-```python
-qa_agent = QAgent(
-    rate_std_dev_threshold=4.0,  # Stricter outlier detection (default: 3.0)
-    duration_max_minutes=180.0   # Lower max duration (default: 240.0)
-)
-```
-
-### Exporting to Excel Instead of CSV
-Edit the end of `run_pipeline.py`:
-
-```python
-# Save as Excel with formatting
-baseline_table.to_excel("baseline_v1_output.xlsx", index=False)
-```
+### Issue: "Processing seems stuck"
+**Solution:** The Standardizer Agent uses tqdm, so check the progress bar. If it's truly stuck, ensure you don't have a corrupted 0-byte file.
 
 ---
 
 ## 📞 Support
-
 For questions or issues:
 1. Check `pipeline_log.txt` for detailed error messages
-2. Review `PROJECT_COMPLETION.md` for architecture details
-3. Consult `multi_agent_architecture_v2.md` for agent specifications
-
----
+2. Consult `SYSTEM_ARCHITECTURE_MAP.md` for logic flow.
 
 **Happy Analyzing!** 🎉

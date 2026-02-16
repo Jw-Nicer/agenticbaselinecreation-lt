@@ -14,7 +14,27 @@ class RateCardAgent:
     for human review - they are NOT filled with fake numbers.
     """
     
-    def __init__(self):
+    def __init__(self, config_path: str = None):
+        if config_path is None:
+             config_path = "config/agent_config.json"
+             
+        import json
+        import os
+        
+        # Default config
+        self.enabled = True
+        self.strict_mode = True
+        
+        try:
+             if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    full_config = json.load(f)
+                    rate_config = full_config.get("RateCardAgent", {})
+                    self.enabled = rate_config.get("enabled", True)
+                    self.strict_mode = rate_config.get("strict_mode", True)
+        except Exception as e:
+            print(f"Warning: Could not load RateCard config: {e}")
+
         # No default rates - we only use file data
         self.rate_card = {}
         

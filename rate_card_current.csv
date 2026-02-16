@@ -1,5 +1,0 @@
-Vendor,Modality,Language,Rate_Per_Minute
-# NOTE: This file should ONLY contain verified contract rates.
-# Do NOT add estimated or industry average rates.
-# If you don't have a verified rate, leave it out.
-# Records with missing costs will be flagged, not filled with fake numbers.

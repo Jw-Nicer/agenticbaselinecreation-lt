@@ -13,7 +13,28 @@ class ModalityRefinementAgent:
     2. AI Fallback (handles novel/ambiguous terms)
     """
 
-    def __init__(self):
+    def __init__(self, config_path: str = None):
+        if config_path is None:
+             config_path = "config/agent_config.json"
+
+        import json
+        import os
+        
+        # Default config
+        self.default_unknown = "UNKNOWN"
+        self.use_ai = True
+        
+        # Load config
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    full_config = json.load(f)
+                    mod_config = full_config.get("ModalityAgent", {})
+                    self.default_unknown = mod_config.get("default_unknown_modality", "UNKNOWN")
+                    self.use_ai = mod_config.get("use_ai_fallback", True)
+        except Exception as e:
+            print(f"Warning: Could not load Modality config: {e}")
+
         # Keyword mapping for regex (priority matters)
         self.rules = [
             ("VRI", [r"vri", r"video", r"visual", r"ipad", r"tablet", r"remote"]),
@@ -25,12 +46,12 @@ class ModalityRefinementAgent:
         # AI Setup
         try:
             from core.ai_client import AIClient
-            self.ai = AIClient()
+            self.ai = AIClient() if self.use_ai else None
         except ImportError:
             self.ai = None
             
         # Cache for AI decisions to avoid repeated API calls for same string
-        self.ai_cache = {} 
+        self.ai_cache = {}  
 
     def refine_records(self, records: List[CanonicalRecord]) -> Dict[str, int]:
         """

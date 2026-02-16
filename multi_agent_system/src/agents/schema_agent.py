@@ -42,20 +42,69 @@ class SchemaAgent:
     It uses Generative AI (LLM) first, then falls back to heuristic matching.
     """
     
-    def __init__(self):
+    def __init__(self, config_path: str = None):
         self.known_mappings = {}
         mem_dir = ensure_memory_dir()
         self._registry_path = mem_dir / "mapping_registry.json"
-        self._mapping_registry = load_json(self._registry_path, {})
+        
+        # Load registry safely
+        try:
+            self._mapping_registry = load_json(self._registry_path, {})
+        except Exception:
+            self._mapping_registry = {}
+            
         self._pending_path = mem_dir / "pending_mappings.json"
         self._pending_mappings = load_json(self._pending_path, [])
         self._last_source = "heuristic"
-        self.config = get_schema_config()
-        self.auto_learn = bool(self.config.get("auto_learn", True))
-        self.require_manual_approval = bool(self.config.get("require_manual_approval", False))
-        self.min_field_confidence = float(self.config.get("min_field_confidence", 0.75))
-        self.min_data_confidence = float(self.config.get("min_data_confidence", 0.70))
-        self.min_final_confidence = float(self.config.get("min_final_confidence", 0.60))
+        
+        # Load centralized config
+        if config_path is None:
+             config_path = "config/agent_config.json"
+        
+        import json
+        import os
+        
+        # Defaults
+        self.auto_learn = True
+        self.require_manual_approval = False
+        self.min_field_confidence = 0.75
+        self.min_data_confidence = 0.70
+        self.min_final_confidence = 0.60
+        
+        try:
+            # Try loading shared config first
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    full_config = json.load(f)
+                    schema_config = full_config.get("SchemaAgent", {})
+                    # Use the shared config if available, otherwise fall back to core.config values
+                    if schema_config:
+                        self.min_field_confidence = schema_config.get("min_confidence_score", 0.75)
+                        # Additional config can be added here
+            
+            # Fallback/Override with core.config if needed (legacy support)
+            # This ensures we don't break existing behavior if agent_config.json is missing keys
+            legacy_config = get_schema_config()
+            if legacy_config:
+                self.auto_learn = bool(legacy_config.get("auto_learn", self.auto_learn))
+                self.require_manual_approval = bool(legacy_config.get("require_manual_approval", self.require_manual_approval))
+                # Only use legacy confidence if not set by new config (or if we want legacy to take precedence)
+                # For now, let's allow legacy to override if it's explicitly set? 
+                # Actually, standard best practice is: Config File > Environment > Defaults
+                # So we stick with the json config values if found.
+                
+        except Exception as e:
+            print(f"Warning: Could not load SchemaAgent config: {e}")
+            # Fallback to legacy config entirely on error
+            self.config = get_schema_config()
+            self.auto_learn = bool(self.config.get("auto_learn", True))
+            self.require_manual_approval = bool(self.config.get("require_manual_approval", False))
+            self.min_field_confidence = float(self.config.get("min_field_confidence", 0.75))
+            self.min_data_confidence = float(self.config.get("min_data_confidence", 0.70))
+            self.min_final_confidence = float(self.config.get("min_final_confidence", 0.60))
+
+        # Store config for other methods to access
+        self.config = get_schema_config() # Keep this for compatibility with other methods using self.config
 
         # Active learning: correction history
         self._correction_path = mem_dir / "correction_history.json"

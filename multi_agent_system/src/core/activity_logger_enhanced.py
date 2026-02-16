@@ -34,6 +34,11 @@ class AgentMessage:
     to_agent: Optional[str] = None
     findings: List[Finding] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    data_passed: Optional[Dict[str, Any]] = None
+    decision: Optional[str] = None
+    status_badge: str = "PASS"  # PASS, FLAG, SKIP
+    confidence: Optional[float] = None  # 0.0-1.0
+    dollar_impact: Optional[float] = None
 
     def to_dict(self) -> Dict:
         d = asdict(self)
@@ -122,6 +127,37 @@ class EnhancedActivityLogger:
             "to_agent": to_agent,
             "message": message,
             **(context or {})
+        })
+        return msg
+
+    def add_conversation_exchange(self, from_agent: str, to_agent: str,
+                                   message: str, data_passed: Dict[str, Any] = None,
+                                   decision: str = None, status_badge: str = "PASS",
+                                   confidence: float = None, dollar_impact: float = None,
+                                   findings: List[Finding] = None) -> AgentMessage:
+        """Record a structured conversation exchange between agents."""
+        msg = AgentMessage(
+            agent=from_agent,
+            message=message,
+            message_type="handoff",
+            to_agent=to_agent,
+            findings=findings or [],
+            data_passed=data_passed,
+            decision=decision,
+            status_badge=status_badge,
+            confidence=confidence,
+            dollar_impact=dollar_impact
+        )
+        self.messages.append(msg)
+
+        self.log(from_agent, "EXCHANGE", {
+            "to_agent": to_agent,
+            "message": message,
+            "decision": decision or "",
+            "status_badge": status_badge,
+            "confidence": confidence,
+            "dollar_impact": dollar_impact,
+            **({"data": str(data_passed)} if data_passed else {})
         })
         return msg
 
