@@ -394,7 +394,9 @@ Rules:
             inferred_conf = inferred.get("confidence", 0.0)
 
             # If data strongly suggests a different type, drop the mapping.
-            if inferred_type and inferred_type != field and inferred_conf >= min_type_conf:
+            # EXCEPTION: If the column name is an exact match for the field keywords, trust it more than inference.
+            is_exact_match = self.clean_header(col) in CANONICAL_FIELDS.get(field, [])
+            if inferred_type and inferred_type != field and inferred_conf >= min_type_conf and not is_exact_match:
                 pruned.pop(field, None)
                 continue
 

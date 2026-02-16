@@ -10,7 +10,7 @@ class AggregatorAgent:
 
     def create_baseline(self, records: List[CanonicalRecord]) -> pd.DataFrame:
         if not records:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=["Month", "Vendor", "Language", "Modality", "Minutes", "Cost", "Calls", "CPM", "Avg_Call_Length"])
             
         # Convert to DataFrame
         data = [

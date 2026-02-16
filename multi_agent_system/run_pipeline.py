@@ -1,6 +1,7 @@
 
 import os
 import sys
+import datetime
 from pathlib import Path
 import json
 import subprocess
@@ -35,8 +36,16 @@ from core.ai_client import AIClient
 
 def main():
     base_dir = BASE_DIR
-    data_dir = base_dir / "data_files" / "Language Services"
     
+    # Configuration from environment
+    client_name = os.getenv("CLIENT_NAME", "default")
+    input_dir = os.getenv("INPUT_DIR", str(base_dir / "data_files" / "Language Services"))
+    data_dir = Path(input_dir)
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_base = base_dir / "out" / client_name / timestamp
+    output_base.mkdir(parents=True, exist_ok=True)
+
     # Initialize activity logger
     logger = reset_logger()
 
@@ -332,6 +341,15 @@ def main():
     print(f"    Baseline rows:  {len(baseline_table):,}")
     print(f"    Total cost:     ${total_cost:,.2f}")
     print(f"    Total minutes:  {total_minutes:,.0f}")
+
+    # Sanity Checks
+    if total_cost == 0 and len(records) > 0:
+        print("  ⚠️ WARNING: Total cost is $0 despite having records. Check rate card/mapping.")
+        logger.log("Orchestrator", "Sanity Check Warning", {"message": "Total cost is $0"})
+
+    if len(records) == 0:
+        print("  ❌ ERROR: No records processed. Check input files and schema mappings.")
+        logger.log("Orchestrator", "Sanity Check Error", {"message": "No records processed"})
     
     logger.set_summary("Aggregator Agent", {
         "key_metric": f"${total_cost:,.2f} total spend",
@@ -388,22 +406,26 @@ def main():
     print("=" * 60)
     
     # Save baseline
-    v1_path = base_dir / "baseline_v1_output.csv"
+    v1_path = output_base / "baseline_v1_output.csv"
     baseline_table.to_csv(v1_path, index=False)
-    print(f"  Baseline saved to: baseline_v1_output.csv")
+    # Also save to root for backward compatibility if needed, but prefer out/
+    baseline_table.to_csv(base_dir / "baseline_v1_output.csv", index=False)
+    print(f"  Baseline saved to: {v1_path}")
     
     # Save transactions
-    transactions_df = pd.DataFrame([vars(r) for r in records])
+    transactions_df = pd.DataFrame([r.model_dump() for r in records])
     if 'date' in transactions_df.columns:
         transactions_df['date'] = transactions_df['date'].astype(str)
-    trans_path = base_dir / "baseline_transactions.csv"
+    trans_path = output_base / "baseline_transactions.csv"
     transactions_df.to_csv(trans_path, index=False)
-    print(f"  Transactions saved to: baseline_transactions.csv")
+    # Also save to root
+    transactions_df.to_csv(base_dir / "baseline_transactions.csv", index=False)
+    print(f"  Transactions saved to: {trans_path}")
     
     # Save Activity Log
-    log_path = base_dir / "AGENT_ACTIVITY_LOG.md"
+    log_path = output_base / "AGENT_ACTIVITY_LOG.md"
     logger.save_report(log_path)
-    print(f"  Activity log saved to: AGENT_ACTIVITY_LOG.md")
+    print(f"  Activity log saved to: {log_path}")
 
     # Save Agent Audit Logs (JSON)
     audit_data = {
@@ -412,10 +434,34 @@ def main():
         'standardizer': std_audit_log
     }
     
-    audit_path = base_dir / "audit_logs.json"
+    audit_path = output_base / "audit_logs.json"
     with open(audit_path, 'w') as f:
         json.dump(audit_data, f, indent=2)
-    print(f"  Agent audit logs saved to: audit_logs.json")
+    print(f"  Agent audit logs saved to: {audit_path}")
+
+    # Generate Manifest
+    manifest = {
+        "client": client_name,
+        "timestamp": timestamp,
+        "input_dir": str(data_dir),
+        "files_processed": [os.path.basename(f) for f in files],
+        "outputs": {
+            "baseline": "baseline_v1_output.csv",
+            "transactions": "baseline_transactions.csv",
+            "activity_log": "AGENT_ACTIVITY_LOG.md",
+            "audit_logs": "audit_logs.json"
+        },
+        "metrics": {
+            "total_records": len(records),
+            "total_spend": float(total_cost),
+            "total_minutes": float(total_minutes)
+        },
+        "status": "COMPLETE"
+    }
+    manifest_path = output_base / "manifest.json"
+    with open(manifest_path, 'w') as f:
+        json.dump(manifest, f, indent=2)
+    print(f"  Manifest saved to: {manifest_path}")
 
     # Universal validation gate
     validator_script = base_dir / "validate_baseline.py"

@@ -1,10 +1,9 @@
 
-from dataclasses import dataclass
-from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, Dict, Any
 import datetime
 
-@dataclass
-class CanonicalRecord:
+class CanonicalRecord(BaseModel):
     """
     The standard format for a single line item of language service usage.
     Agents must map raw data to this structure.
@@ -19,14 +18,25 @@ class CanonicalRecord:
     modality: str = "OPI" # OPI, VRI, OnSite, Translation
     
     minutes_billed: float = 0.0
-    calls_count: int = 1 # Usually 1 for line item, but could be aggregated
+    calls_count: int = 1
     
     total_charge: float = 0.0
     rate_per_minute: float = 0.0
     
     # Metadata for tracing
-    raw_columns: dict = None
-    confidence_score: float = 1.0 # 0.0 to 1.0 based on extraction quality
+    raw_columns: Optional[Dict[str, Any]] = None
+    confidence_score: float = Field(default=1.0, ge=0.0, le=1.0)
+
+    @field_validator('date', mode='before')
+    @classmethod
+    def parse_date(cls, v):
+        if isinstance(v, str):
+            try:
+                return datetime.datetime.strptime(v, '%Y-%m-%d').date()
+            except ValueError:
+                # Handle other formats if necessary or leave it to Pydantic's default
+                pass
+        return v
 
 # Define the expected fields for the Schema Mapper target
 CANONICAL_FIELDS = {

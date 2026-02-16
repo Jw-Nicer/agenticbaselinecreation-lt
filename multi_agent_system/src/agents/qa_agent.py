@@ -23,7 +23,15 @@ class QAgent:
         Returns (Processed Records, QA Summary Stats)
         """
         if not records:
-            return [], {"status": "Empty input", "total_records": 0}
+            return [], {
+                "status": "Empty input",
+                "total_records_input": 0,
+                "duplicates_removed": 0,
+                "outliers_flagged": 0,
+                "critical_errors_quarantined": 0,
+                "total_records_output": 0,
+                "issue_counts": {}
+            }
 
         # 1. Convert to temporary DataFrame for statistical analysis
         df_records = []
